@@ -4,6 +4,11 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
+@theme {
+  /* Fond gris-lavande de la zone centrale (maquettes) */
+  --color-canvas: #e6e6f0;
+}
+
 @layer base {
   body {
     background: #ffffff;
