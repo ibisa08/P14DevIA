@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -7,7 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import get_settings
 from database import get_engine, init_db
+from errors import register_error_handlers
+from routers import auth
 
+# Sans configuration, les logs INFO des modules de l'app seraient ignorés
+# (uvicorn ne configure que ses propres loggers)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s - %(message)s")
+
+# Lève une erreur explicite dès le démarrage si la config est incomplète (ex. JWT_SECRET)
 settings = get_settings()
 
 
@@ -24,13 +32,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="NewsFoundry API", lifespan=lifespan)
 
+# Avant CORSMiddleware : les réponses d'erreur 500 doivent elles aussi porter les headers CORS
+register_error_handlers(app)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.frontend_origins,
-    allow_credentials=True,
+    # L'auth passe par le header Authorization (token en localStorage), pas par des cookies :
+    # inutile d'autoriser l'envoi de credentials cross-origin, on garde la surface minimale.
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth.router)
 
 
 @app.get("/")

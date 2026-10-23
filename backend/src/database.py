@@ -1,13 +1,16 @@
+import logging
 from collections.abc import Generator
 from functools import lru_cache
 
-import bcrypt
 from fastapi import Depends
 from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine, select
 
+from auth.security import hash_password
 from config import get_settings
 from models import User
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache
@@ -32,7 +35,7 @@ def get_session(engine: Engine = Depends(get_engine)) -> Generator[Session, None
 def init_db(engine: Engine) -> None:
     """Crée les tables manquantes et l'utilisateur de test sur l'engine fourni."""
     SQLModel.metadata.create_all(engine)
-    print("Database initialized successfully")
+    logger.info("Base de données initialisée (tables créées si absentes)")
 
     # Création de l'utilisateur de test (pas d'inscription dans l'application)
     default_email = "test@test.com"
@@ -46,11 +49,7 @@ def init_db(engine: Engine) -> None:
             session.add(
                 User(
                     email=default_email,
-                    # hashpw renvoie des bytes : on stocke la chaîne décodée dans la colonne str,
-                    # sinon la valeur enregistrée devient la représentation "b'...'" et checkpw échoue.
-                    hashed_password=bcrypt.hashpw(
-                        default_password.encode("utf-8"), bcrypt.gensalt()
-                    ).decode("utf-8"),
+                    hashed_password=hash_password(default_password),
                 )
             )
             session.commit()

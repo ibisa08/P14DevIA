@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Annotated
 
-from pydantic import field_validator
+from pydantic import Field, ValidationError, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     # (ex. "http://localhost:3000,https://app.vercel.app") au lieu d'imposer du JSON.
     frontend_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 
+    # Obligatoire, sans valeur par défaut : un secret par défaut finirait tôt ou tard en prod.
+    # 32 caractères minimum, recommandation pour une clé HMAC-SHA256.
+    jwt_secret: str = Field(min_length=32)
+    jwt_expire_minutes: int = Field(default=60, gt=0)
+
     @field_validator("frontend_origins", mode="before")
     @classmethod
     def split_origins(cls, value: str | list[str]) -> list[str]:
@@ -29,4 +34,13 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    try:
+        return Settings()
+    except ValidationError as exc:
+        # Message lisible au démarrage plutôt qu'une trace Pydantic brute (détail conservé via `from`)
+        problems = "; ".join(
+            f"{str(error['loc'][0]).upper()} : {error['msg']}" for error in exc.errors()
+        )
+        raise RuntimeError(
+            f"Configuration invalide ({problems}). Voir backend/.env.example."
+        ) from exc

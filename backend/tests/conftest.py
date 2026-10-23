@@ -1,4 +1,9 @@
+import os
 from collections.abc import Generator
+
+# Doit précéder l'import de l'app : la config est validée dès l'import de `main`.
+# Affectation (et non setdefault) : les tests utilisent toujours ce secret, jamais celui du .env.
+os.environ["JWT_SECRET"] = "secret-de-test-uniquement-pour-pytest-0123456789"
 
 import pytest
 from fastapi.testclient import TestClient
