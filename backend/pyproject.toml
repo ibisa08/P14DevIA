@@ -10,4 +10,16 @@ dependencies = [
     "sqlmodel>=0.0.14",
     "psycopg2-binary>=2.9.9",
     "bcrypt>=4.3.0",
+    "pydantic-settings>=2.16.1",
+]
+
+[tool.pytest.ini_options]
+# Le code utilise des imports plats (`from models import User`) : src/ doit être sur le sys.path.
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
 ]
