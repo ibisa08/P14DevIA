@@ -10,6 +10,7 @@ from typing import Annotated, Literal
 from pydantic import AfterValidator, BaseModel, EmailStr, StringConstraints
 
 MESSAGE_MAX_LENGTH = 4000
+TOPIC_MAX_LENGTH = 200
 
 
 def ensure_utc(value: datetime) -> datetime:
@@ -62,3 +63,33 @@ class ChatSummary(BaseModel):
 class ChatRead(ChatSummary):
     messages: list[ChatMessageRead]
 
+
+# --- Revues de presse -------------------------------------------------------------
+
+
+class ReviewCreate(BaseModel):
+    topic: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=TOPIC_MAX_LENGTH)
+    ]
+
+
+class ArticleRead(BaseModel):
+    title: str
+    summary: str
+    source: str | None = None
+    url: str | None = None
+
+
+class ReviewContent(BaseModel):
+    title: str
+    summary: str
+    articles: list[ArticleRead]
+
+
+class PressReviewRead(BaseModel):
+    id: int
+    chat_id: int
+    topic: str
+    title: str
+    content: ReviewContent
+    created_at: UtcDatetime

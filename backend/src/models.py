@@ -28,3 +28,13 @@ class Chat(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now, sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(default_factory=utc_now, sa_type=DateTime(timezone=True))
 
+
+class PressReview(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    chat_id: int = Field(foreign_key="chat.id", index=True)
+    topic: str
+    title: str
+    # Sortie structurée de l'agent : {title, summary, articles: [{title, summary, source, url}]}
+    content: dict[str, Any] = Field(sa_type=JSON)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=DateTime(timezone=True))

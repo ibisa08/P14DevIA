@@ -41,3 +41,8 @@ def to_display_messages(messages: list[ModelMessage]) -> list[ChatMessageRead]:
             )
     return display
 
+
+def to_transcript(messages: list[ChatMessageRead]) -> str:
+    """Discussion en texte brut, transmise à l'agent de revue de presse."""
+    speakers = {"user": "Journaliste", "assistant": "Assistant"}
+    return "\n\n".join(f"{speakers[message.role]} : {message.content}" for message in messages)
