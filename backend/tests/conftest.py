@@ -4,6 +4,9 @@ from collections.abc import Generator
 # Doit précéder l'import de l'app : la config est validée dès l'import de `main`.
 # Affectation (et non setdefault) : les tests utilisent toujours ce secret, jamais celui du .env.
 os.environ["JWT_SECRET"] = "secret-de-test-uniquement-pour-pytest-0123456789"
+# TestModel de PydanticAI par défaut : aucun test ne peut appeler un vrai modèle (ni coûter,
+# ni exiger de clé). Les tests qui ont besoin d'une réponse précise utilisent agent.override().
+os.environ["LLM_MODEL"] = "test"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,8 +14,10 @@ from sqlalchemy import Engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, create_engine
 
+from auth.jwt import create_access_token
 from database import get_engine, get_session
 from main import app
+from models import User
 
 
 @pytest.fixture
@@ -52,3 +57,25 @@ def client(engine: Engine) -> Generator[TestClient, None, None]:
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+def create_user_headers(session: Session, email: str) -> dict[str, str]:
+    """Crée un utilisateur et renvoie ses headers d'authentification."""
+    # Hash factice : ces utilisateurs ne passent jamais par /login (évite un bcrypt lent par test)
+    user = User(email=email, hashed_password="non-utilise")
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return {"Authorization": f"Bearer {create_access_token(user.id)}"}
+
+
+@pytest.fixture
+def alice(client: TestClient, session: Session) -> dict[str, str]:
+    """Headers d'un premier utilisateur (dépend de `client` : les tables doivent exister)."""
+    return create_user_headers(session, "alice@test.com")
+
+
+@pytest.fixture
+def bob(client: TestClient, session: Session) -> dict[str, str]:
+    """Headers d'un second utilisateur, pour les tests d'isolation."""
+    return create_user_headers(session, "bob@test.com")

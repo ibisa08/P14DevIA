@@ -13,6 +13,7 @@ dependencies = [
     "pydantic-settings>=2.16.1",
     "pyjwt>=2.15.1",
     "email-validator>=2.3.0",
+    "pydantic-ai-slim[anthropic]>=2.60.0",
 ]
 
 [tool.pytest.ini_options]

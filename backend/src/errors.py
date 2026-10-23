@@ -15,6 +15,9 @@ VALIDATION_MESSAGES = {
     "string_type": "doit être une chaîne de caractères",
     "json_invalid": "JSON mal formé",
     "model_attributes_type": "objet JSON attendu",
+    "dict_type": "objet JSON attendu",
+    "int_parsing": "nombre entier attendu",
+    "string_too_short": "ne doit pas être vide",
 }
 
 
@@ -26,9 +29,12 @@ def format_validation_errors(errors: list[dict]) -> str:
     parts = []
     for error in errors:
         # loc vaut par ex. ("body", "email") : on garde le nom du champ
-        field = ".".join(str(item) for item in error["loc"] if item != "body") or "corps"
+        location = [str(item) for item in error["loc"] if item not in ("body", "path", "query")]
+        field = ".".join(location) or "corps"
         if field == "email" and error["type"] == "value_error":
             message = "adresse email invalide"
+        elif error["type"] == "string_too_long":
+            message = f"{error['ctx']['max_length']} caractères maximum"
         else:
             message = VALIDATION_MESSAGES.get(error["type"], "valeur invalide")
         parts.append(f"{field} ({message})")

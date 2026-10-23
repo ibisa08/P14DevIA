@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import get_settings
 from database import get_engine, init_db
 from errors import register_error_handlers
-from routers import auth
+from routers import auth, chats
 
 # Sans configuration, les logs INFO des modules de l'app seraient ignorés
 # (uvicorn ne configure que ses propres loggers)
@@ -46,6 +46,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(chats.router)
 
 
 @app.get("/")

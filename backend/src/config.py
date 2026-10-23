@@ -24,11 +24,28 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(min_length=32)
     jwt_expire_minutes: int = Field(default=60, gt=0)
 
+    # Modèle des agents au format PydanticAI « fournisseur:modèle » (ex. anthropic:claude-haiku-5-5),
+    # ou « test » : TestModel de PydanticAI, réponses factices sans clé API ni appel réseau.
+    # Obligatoire : un oubli en prod ne doit pas basculer en silence sur le modèle factice.
+    # La clé du fournisseur (ANTHROPIC_API_KEY) est lue par son SDK au premier appel, jamais
+    # à l'import : l'app démarre et les tests tournent sans elle.
+    llm_model: str
+
     @field_validator("frontend_origins", mode="before")
     @classmethod
     def split_origins(cls, value: str | list[str]) -> list[str]:
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
+
+    @field_validator("llm_model")
+    @classmethod
+    def check_llm_model(cls, value: str) -> str:
+        value = value.strip()
+        if value != "test" and ":" not in value:
+            raise ValueError(
+                "format attendu « fournisseur:modèle » (ex. anthropic:claude-haiku-5-5) ou « test »"
+            )
         return value
 
 
