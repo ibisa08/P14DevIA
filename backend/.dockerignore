@@ -1,0 +1,7 @@
+# Le contexte de build ne doit contenir ni secrets ni artefacts locaux
+.env
+.venv/
+**/__pycache__/
+**/*.py[oc]
+.pytest_cache/
+tests/
