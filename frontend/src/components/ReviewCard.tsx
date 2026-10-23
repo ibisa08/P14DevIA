@@ -20,6 +20,7 @@ function reviewToText(review: PressReview): string {
   return [
     content.title,
     formatLongDateTime(review.created_at),
+    `Sujet : ${review.topic}`,
     "",
     "Synthèse générale",
     content.summary,
