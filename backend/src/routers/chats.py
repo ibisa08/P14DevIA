@@ -5,13 +5,14 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, col, select
 
-from agents.chat_agent import NEWSFOUNDRY_SYSTEM_PROMPT, generate_reply
+from agents.chat_agent import build_system_prompt, generate_reply
 from agents.history import dump_history, load_history, to_display_messages
 from auth.dependencies import get_current_user
 from database import get_session
 from models import Chat, User, utc_now
 from routers.auth import UNAUTHORIZED_RESPONSE
 from schemas import ChatRead, ChatSummary, MessageCreate
+from services.news_api import NewsApiError, NewsArticle, NewsClient, get_news_client
 
 logger = logging.getLogger(__name__)
 
@@ -72,20 +73,41 @@ def list_chats(
     return list(session.exec(statement).all())
 
 
+async def fetch_top_news(news_client: NewsClient) -> list[NewsArticle] | None:
+    """Actualités du jour, ou None si indisponibles : jamais bloquant pour la création du chat."""
+    try:
+        return await news_client.get_top_news()
+    except NewsApiError as exc:
+        logger.warning("Nouvelle discussion sans actualités du jour : %s", exc)
+    except Exception:
+        # Bug inattendu du client : la discussion doit être créée quand même
+        logger.exception("Nouvelle discussion sans actualités du jour (erreur inattendue)")
+    return None
+
+
 @router.post(
     "",
     response_model=ChatRead,
     status_code=status.HTTP_201_CREATED,
     responses=UNAUTHORIZED_RESPONSE,
 )
-def create_chat(
-    current_user: User = Depends(get_current_user), session: Session = Depends(get_session)
+async def create_chat(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+    news_client: NewsClient = Depends(get_news_client),
 ) -> ChatRead:
+    user_id = current_user.id
+    # Connexion rendue au pool pendant l'appel à WorldNewsAPI (jusqu'au timeout du client)
+    session.commit()
+    top_news = await fetch_top_news(news_client)
+
     now = utc_now()
+    local_now = now.astimezone(TITLE_TIMEZONE)
     chat = Chat(
-        user_id=current_user.id,
-        title=f"Discussion du {now.astimezone(TITLE_TIMEZONE):%d/%m/%Y}",
-        system_prompt=NEWSFOUNDRY_SYSTEM_PROMPT,
+        user_id=user_id,
+        title=f"Discussion du {local_now:%d/%m/%Y}",
+        # Figé ici : un chat repris plus tard garde les actualités du jour de sa création
+        system_prompt=build_system_prompt(top_news, local_now.date()),
         created_at=now,
         updated_at=now,
     )

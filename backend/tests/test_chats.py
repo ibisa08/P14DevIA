@@ -41,8 +41,10 @@ def test_create_chat(client: TestClient, session: Session, alice: dict[str, str]
     assert body["messages"] == []
     # Dates avec fuseau explicite, sinon le navigateur les lirait en heure locale
     assert datetime.fromisoformat(body["created_at"]).tzinfo is not None
-    # Prompt système figé dans le chat dès sa création
-    assert session.get(Chat, body["id"]).system_prompt == NEWSFOUNDRY_SYSTEM_PROMPT
+    # Prompt système figé dans le chat dès sa création (sans clé WorldNewsAPI : sans actualités)
+    system_prompt = session.get(Chat, body["id"]).system_prompt
+    assert system_prompt.startswith(NEWSFOUNDRY_SYSTEM_PROMPT)
+    assert "Actualités indisponibles" in system_prompt
 
 
 # --- Envoi de messages -------------------------------------------------------------

@@ -1,5 +1,5 @@
 import os
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 
 # Doit précéder l'import de l'app : la config est validée dès l'import de `main`.
 # Affectation (et non setdefault) : les tests utilisent toujours ce secret, jamais celui du .env.
@@ -24,6 +24,7 @@ from auth.jwt import create_access_token
 from database import get_engine, get_session
 from main import app
 from models import User
+from services.news_api import NewsClient, get_news_client
 
 
 @pytest.fixture
@@ -59,6 +60,10 @@ def client(engine: Engine) -> Generator[TestClient, None, None]:
 
     app.dependency_overrides[get_engine] = lambda: engine
     app.dependency_overrides[get_session] = get_session_override
+    # Client WorldNewsAPI sans clé par défaut : aucun appel réseau possible, les discussions
+    # sont créées sans actualités. Les tests d'actualités installent un faux via use_news_client.
+    keyless_news_client = NewsClient(None)
+    app.dependency_overrides[get_news_client] = lambda: keyless_news_client
     # Le `with` déclenche le lifespan, donc init_db(engine de test)
     with TestClient(app) as test_client:
         yield test_client
@@ -86,3 +91,12 @@ def bob(client: TestClient, session: Session) -> dict[str, str]:
     """Headers d'un second utilisateur, pour les tests d'isolation."""
     return create_user_headers(session, "bob@test.com")
 
+
+@pytest.fixture
+def use_news_client(client: TestClient) -> Callable[[NewsClient], None]:
+    """Installe un client WorldNewsAPI (branché sur un faux transport) pour la suite du test."""
+
+    def install(news_client: NewsClient) -> None:
+        app.dependency_overrides[get_news_client] = lambda: news_client
+
+    return install
