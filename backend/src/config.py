@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Annotated
 
-from pydantic import Field, ValidationError, field_validator
+from pydantic import Field, SecretStr, ValidationError, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -30,6 +30,24 @@ class Settings(BaseSettings):
     # La clé du fournisseur (ANTHROPIC_API_KEY) est lue par son SDK au premier appel, jamais
     # à l'import : l'app démarre et les tests tournent sans elle.
     llm_model: str
+
+    # WorldNewsAPI. Clé optionnelle : sans elle, l'app fonctionne sans actualités (mode dégradé).
+    # SecretStr : la clé n'apparaît jamais dans un repr ou un log des settings.
+    worldnews_api_key: SecretStr | None = None
+    # Pays et langue des actualités du jour (/top-news exige les deux)
+    news_country: str = "fr"
+    news_language: str = "fr"
+    # Durée de cache des actualités du jour, et d'un échec (quota, panne) avant de retenter
+    top_news_cache_ttl_seconds: int = Field(default=3600, gt=0)
+    top_news_failure_ttl_seconds: int = Field(default=300, ge=0)
+
+    @field_validator("worldnews_api_key", mode="before")
+    @classmethod
+    def empty_key_is_none(cls, value: object) -> object:
+        # « WORLDNEWS_API_KEY= » dans le .env vaut absence de clé, pas une clé vide
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     @field_validator("frontend_origins", mode="before")
     @classmethod

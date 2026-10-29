@@ -7,6 +7,12 @@ os.environ["JWT_SECRET"] = "secret-de-test-uniquement-pour-pytest-0123456789"
 # TestModel de PydanticAI par défaut : aucun test ne peut appeler un vrai modèle (ni coûter,
 # ni exiger de clé). Les tests qui ont besoin d'une réponse précise utilisent agent.override().
 os.environ["LLM_MODEL"] = "test"
+# Ceinture et bretelles : même avec des clés réelles dans le shell ou le .env, aucun test
+# n'appelle Anthropic ni WorldNewsAPI. Le SDK Anthropic lit l'environnement : on retire la clé.
+# WORLDNEWS_API_KEY est forcée à vide (et non retirée) : une variable d'environnement prime
+# sur le .env, que la config lit aussi.
+os.environ.pop("ANTHROPIC_API_KEY", None)
+os.environ["WORLDNEWS_API_KEY"] = ""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -79,3 +85,4 @@ def alice(client: TestClient, session: Session) -> dict[str, str]:
 def bob(client: TestClient, session: Session) -> dict[str, str]:
     """Headers d'un second utilisateur, pour les tests d'isolation."""
     return create_user_headers(session, "bob@test.com")
+
