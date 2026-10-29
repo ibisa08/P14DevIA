@@ -14,6 +14,10 @@ from routers import auth, chats, reviews
 # Sans configuration, les logs INFO des modules de l'app seraient ignorés
 # (uvicorn ne configure que ses propres loggers)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s - %(message)s")
+# httpx journalise chaque URL appelée, or celles de /search-news contiennent la recherche
+# (issue des messages du journaliste) : les logs ne gardent aucun contenu de discussion.
+# Le client WorldNewsAPI journalise lui-même l'endpoint, le coût et les erreurs.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Lève une erreur explicite dès le démarrage si la config est incomplète (ex. JWT_SECRET)
 settings = get_settings()

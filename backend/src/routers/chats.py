@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, col, select
 
-from agents.chat_agent import build_system_prompt, generate_reply
+from agents.chat_agent import ChatDeps, build_system_prompt, generate_reply
 from agents.history import dump_history, load_history, to_display_messages
 from auth.dependencies import get_current_user
 from database import get_session
@@ -48,6 +48,14 @@ def get_owned_chat(session: Session, chat_id: int, user: User) -> Chat:
     if chat is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=CHAT_NOT_FOUND)
     return chat
+
+
+def merge_articles(
+    known: list[dict[str, str]], found: list[dict[str, str]]
+) -> list[dict[str, str]]:
+    """Ajoute les articles trouvés à ceux déjà chargés, sans doublon d'URL (nouvelle liste)."""
+    known_urls = {article["url"] for article in known}
+    return [*known, *(article for article in found if article["url"] not in known_urls)]
 
 
 def to_chat_read(chat: Chat) -> ChatRead:
@@ -140,6 +148,7 @@ async def send_message(
     message: MessageCreate,
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
+    news_client: NewsClient = Depends(get_news_client),
 ) -> ChatRead:
     chat = get_owned_chat(session, chat_id, current_user)
     history = load_history(chat.messages)
@@ -148,8 +157,9 @@ async def send_message(
     # modèle (plusieurs secondes) au lieu de rester « idle in transaction » côté Postgres.
     session.commit()
 
+    deps = ChatDeps(news_client=news_client)
     try:
-        updated_history = await generate_reply(message.content, history, system_prompt)
+        updated_history = await generate_reply(message.content, history, system_prompt, deps)
     except Exception:
         # Détail (fournisseur, quota, clé manquante...) dans les logs uniquement ;
         # l'historique n'est pas modifié, le message pourra être renvoyé tel quel.
@@ -157,6 +167,7 @@ async def send_message(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=LLM_ERROR)
 
     chat.messages = dump_history(updated_history)
+    chat.loaded_articles = merge_articles(chat.loaded_articles, deps.found_articles)
     chat.updated_at = utc_now()
     session.add(chat)
     session.commit()

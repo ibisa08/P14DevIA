@@ -35,7 +35,9 @@ def to_display_messages(messages: list[ModelMessage]) -> list[ChatMessageRead]:
                     display.append(
                         ChatMessageRead(role="user", content=part.content, created_at=part.timestamp)
                     )
-        elif isinstance(message, ModelResponse) and message.text:
+        # Une réponse qui appelle un outil est une étape intermédiaire (« je vais chercher… ») :
+        # seule la réponse finale de chaque échange est affichée
+        elif isinstance(message, ModelResponse) and message.text and not message.tool_calls:
             display.append(
                 ChatMessageRead(role="assistant", content=message.text, created_at=message.timestamp)
             )
