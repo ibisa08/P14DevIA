@@ -1,5 +1,26 @@
 # NewsFoundry
 
+Outil de revue de presse assisté par IA pour journalistes pigistes : un assistant conversationnel
+qui s'appuie sur l'actualité du jour (WorldNewsAPI) et sait chercher des articles, puis une
+génération de revues de presse structurées, sauvegardées et consultables.
+
+## Application déployée
+
+| | URL |
+|---|---|
+| Frontend (Vercel) | https://p14-dev-ia-olive.vercel.app |
+| API (Railway) | https://p14devia-production-67a4.up.railway.app |
+| Documentation de l'API (Swagger) | https://p14devia-production-67a4.up.railway.app/docs |
+
+**Compte de test** (il n'y a pas d'inscription) : `test@test.com` / `test`
+
+### Disponibilité
+
+Le frontend reste en ligne en permanence. Le backend (et sa base Postgres) est actif pendant les
+périodes d'évaluation seulement : hors de ces périodes, la connexion affichera « Le service est
+momentanément indisponible ». Pour le remettre en ligne, suivre la procédure « Redéployer » de
+[`docs/deploiement.md`](docs/deploiement.md#redéployer).
+
 ## Besoins fonctionnels
 
 - L'utilisateur peut se connecter.
@@ -9,19 +30,6 @@
 - Le LLM répond aux messages envoyés par l’utilisateur.
 - L'utilisateur peut faire générer une revue de presse à partir d'une discussion.
 - L'application doit afficher des messages d'erreur à l'utilisateur final en cas d'erreur.
-
-## Prérequis
-
-- Docker
-- Python 3.13
-- uv
-- Node.js 22.19
-
-## Installation
-
-1. Cloner le repository
-2. Démarrer le backend aved les instructions du fichier `backend/README.md`
-3. Initialiser un projet Next.js dans un dossier `frontend/`
 
 ## Choix technologiques
 
@@ -42,26 +50,51 @@
 - Pour les sources de news, on utilisera l’API [**WorldNewsAPI**](https://worldnewsapi.com/).
 - Pour déployer on mettra le frontend sur **Vercel** et le backend sur **Railway**.
 
-### Documentation
+Les justifications détaillées de chaque choix sont dans [`docs/decisions.md`](docs/decisions.md).
 
-Une documentation claire devra être rédigée et ajoutée dans un dossier `docs/`.
+## Démarrage rapide
 
-Elle devra inclure des suggestions d'amélioration concernant la qualité et la performance de la partie IA du système. Chaque recommandation doit être illustrée par une une métrique ou un exemple, une proposition d’implémentation réalisable, ainsi qu'un objectif mesurable.
+Prérequis : Docker, Python 3.13, [uv](https://docs.astral.sh/uv/), Node.js 22.19.
 
+```bash
+# 1. Base de données (port 5434 si 5432 est déjà pris, voir docs/developpement.md)
+docker run --name newsfoundry_db -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=newsfoundry -p 5432:5432 -d postgres:17
 
-Par ailleurs, pour faciliter la maintenance du projet à long terme, le code du projet devra être clair et bien structuré, accompagné de commentaires qui expliquent les sections de code complexes.
+# 2. API sur http://localhost:8000
+cd backend
+cp .env.example .env        # puis renseigner JWT_SECRET (openssl rand -hex 32)
+uv sync
+uv run --env-file .env src/main.py
 
-### Deploiement
+# 3. Frontend sur http://localhost:3000 (dans un autre terminal)
+cd frontend
+npm install
+npm run dev
+```
 
-L'url de l'application déployée devra être ajouté dans la documentation.
+Avec `LLM_MODEL=test` (valeur de `.env.example`), l'assistant répond par des textes factices : ni clé
+Anthropic ni clé WorldNewsAPI ne sont nécessaires pour essayer l'interface.
 
-#### Frontend
+## Tests
 
-Déployer le frontend sur [Vercel](https://vercel.com/dashboard).
+```bash
+cd backend && uv run pytest
+```
 
-#### Backend
+99 tests, sur SQLite en mémoire, sans appel réseau (aucune clé requise). Ils incluent les tests
+d'autorisation : un utilisateur ne peut ni lire, ni écrire, ni générer une revue sur la discussion
+d'un autre. La CI GitHub Actions (`.github/workflows/ci.yml`) les lance à chaque push et pull
+request sur `main`.
 
-Déployer le backend sur [Railway](https://railway.com/dashboard).
+## Documentation
 
-> Un Dockerfile est déjà présent pour faciliter le déploiement. Il faudra simplement référencer `backend/` comme "Root Directory" après avoir connecté le repository.
-> La base de donnée postgres peut être créée via Railway dans le même projet que le backend.
+| Document | Contenu |
+|---|---|
+| [`docs/architecture.md`](docs/architecture.md) | Schéma d'ensemble, arborescences, modèle de données, routes, déroulé d'un message, authentification et gestion d'erreurs |
+| [`docs/developpement.md`](docs/developpement.md) | Installation locale, variables d'environnement, tests, CI, observabilité (MLflow) |
+| [`docs/deploiement.md`](docs/deploiement.md) | Déploiement Vercel et Railway, variables de production, procédure pour redéployer |
+| [`docs/decisions.md`](docs/decisions.md) | Choix techniques regroupés par thème, avec leur justification |
+| [`docs/ameliorations.md`](docs/ameliorations.md) | Pistes d'amélioration de la partie IA, chacune avec une mesure, une implémentation et un objectif |
+
+Les README de [`backend/`](backend/README.md) et [`frontend/`](frontend/README.md) renvoient vers ces documents.

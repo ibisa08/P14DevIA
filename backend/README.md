@@ -1,25 +1,19 @@
 # NewsFoundry Backend
 
-1. Copier le fichier `.env.example` dans `.env`
+API FastAPI (Python 3.13, uv, SQLModel, PostgreSQL, PydanticAI).
 
+Démarrage rapide, depuis ce dossier :
 
-2. Installer les dépendances:
 ```bash
+cp .env.example .env     # renseigner JWT_SECRET (openssl rand -hex 32)
 uv sync
+uv run --env-file .env src/main.py     # API sur http://localhost:8000, doc sur /docs
+uv run pytest                          # tests
 ```
 
-2. Démarrer la base de données:
-```bash
-docker run \
-  --name newsfoundry_db \
-  -e POSTGRES_USER=user \
-  -e POSTGRES_PASSWORD=password \
-  -e POSTGRES_DB=newsfoundry \
-  -p 5432:5432 \
-  postgres:17
-```
+La base PostgreSQL se lance avec Docker : voir [`../docs/developpement.md`](../docs/developpement.md).
 
-3. Lancer le backend:
-```bash
-uv run --env-file .env src/main.py
-```
+- Installation, variables d'environnement, tests, CI, MLflow : [`../docs/developpement.md`](../docs/developpement.md)
+- Architecture et routes : [`../docs/architecture.md`](../docs/architecture.md)
+- Déploiement sur Railway : [`../docs/deploiement.md`](../docs/deploiement.md)
+- Choix techniques : [`../docs/decisions.md`](../docs/decisions.md)
