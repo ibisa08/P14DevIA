@@ -118,7 +118,7 @@ function ChatList({ activeChatId, onNavigate }: { activeChatId: number | null; o
               }`}
             >
               <span className="block text-zinc-900">Discussion du</span>{" "}
-              {/* Heure ajoutée à la maquette : distingue plusieurs discussions du même jour */}
+              {/* L'heure distingue plusieurs discussions créées le même jour */}
               <time dateTime={chat.created_at} className="block text-xs text-zinc-600">
                 {formatDate(chat.created_at)} à {formatTime(chat.created_at)}
               </time>

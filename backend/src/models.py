@@ -26,7 +26,8 @@ class Chat(SQLModel, table=True):
     # Toujours réaffecter une nouvelle liste : une modification en place ne serait pas détectée.
     messages: list[dict[str, Any]] = Field(default_factory=list, sa_type=JSON)
     # Articles trouvés par l'outil search_news ({url, title}, sans doublon), cumulés sur toute
-    # la discussion : base d'un futur RAG sur les articles consultés (étape 8)
+    # la discussion. Sert à retrouver les sources consultées (et, plus tard, à indexer leur
+    # contenu pour de la recherche sémantique) sans relire tout l'historique.
     loaded_articles: list[dict[str, str]] = Field(default_factory=list, sa_type=JSON)
     created_at: datetime = Field(default_factory=utc_now, sa_type=DateTime(timezone=True))
     updated_at: datetime = Field(default_factory=utc_now, sa_type=DateTime(timezone=True))

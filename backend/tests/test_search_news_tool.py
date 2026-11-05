@@ -1,4 +1,4 @@
-"""Étape 6 : outil search_news de l'agent de chat (FunctionModel, WorldNewsAPI simulée)."""
+"""Outil search_news de l'agent de chat (FunctionModel, WorldNewsAPI simulée)."""
 
 import logging
 from collections.abc import Callable

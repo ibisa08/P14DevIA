@@ -5,7 +5,7 @@
 }
 
 @theme {
-  /* Fond gris-lavande de la zone centrale (maquettes) */
+  /* Fond gris-lavande de la zone centrale */
   --color-canvas: #e6e6f0;
 }
 
@@ -23,7 +23,7 @@
   }
 }
 
-/* Fond sombre quadrillé de la page de connexion (maquette) */
+/* Fond sombre quadrillé de la page de connexion */
 .bg-login-grid {
   background-color: #2a2a2f;
   background-image:

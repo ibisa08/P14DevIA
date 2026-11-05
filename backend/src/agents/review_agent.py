@@ -58,7 +58,8 @@ review_agent = Agent(
 async def generate_review(topic: str, transcript: str) -> PressReviewOutput:
     """Génère une revue de presse structurée à partir de la transcription d'une discussion."""
     # La discussion est passée en texte plutôt qu'en historique brut : cet agent n'a pas de
-    # tools, et un historique contenant des appels de tools (étape 6) pourrait être refusé.
+    # tools, et un historique contenant des appels à search_news (outil de l'agent de chat)
+    # pourrait être refusé par le modèle.
     prompt = (
         f"Sujet de la revue de presse : {topic}\n\n"
         f"Historique de la discussion :\n\n{transcript}"

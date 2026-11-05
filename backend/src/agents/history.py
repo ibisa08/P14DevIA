@@ -14,10 +14,16 @@ from schemas import ChatMessageRead
 
 
 def load_history(raw: list[dict[str, Any]]) -> list[ModelMessage]:
+    """Reconstruit l'historique PydanticAI depuis la colonne JSON `Chat.messages`.
+
+    Ce JSON est la sérialisation complète des messages (instructions, appels d'outils, usage) :
+    c'est exactement ce que l'agent reçoit à chaque tour, d'où la validation par le type adapter.
+    """
     return ModelMessagesTypeAdapter.validate_python(raw)
 
 
 def dump_history(messages: list[ModelMessage]) -> list[dict[str, Any]]:
+    """Sérialise l'historique complet pour la colonne JSON `Chat.messages` (inverse de load_history)."""
     # mode="json" : dates en ISO 8601, contenu binaire en base64, stockable en colonne JSON
     return ModelMessagesTypeAdapter.dump_python(messages, mode="json")
 

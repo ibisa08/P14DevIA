@@ -1,4 +1,4 @@
-"""Étape 5 : actualités du jour injectées et figées dans le prompt système des discussions."""
+"""Actualités du jour : injectées et figées dans le prompt système des discussions."""
 
 from collections.abc import Callable
 from datetime import datetime

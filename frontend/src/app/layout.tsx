@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
-// Police proche de celle des maquettes
+// Police sans empattement lisible, chargée via next/font (hébergée avec l'application)
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],

@@ -13,7 +13,7 @@ type MessageBubbleProps = {
   footer?: ReactNode;
 };
 
-/** Bulle de message : journaliste sombre à droite, assistant clair à gauche (maquette). */
+/** Bulle de message : journaliste sombre à droite, assistant clair à gauche. */
 export function MessageBubble({ role, content, createdAt, footer }: MessageBubbleProps) {
   const isUser = role === "user";
 

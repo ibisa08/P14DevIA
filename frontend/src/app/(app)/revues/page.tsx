@@ -16,7 +16,7 @@ export default function ReviewsPage() {
   const [error, setError] = useState<string | null>(null);
   // Incrémenté par « Réessayer » pour relancer le chargement
   const [attempt, setAttempt] = useState(0);
-  // La zone de saisie de la maquette démarre une nouvelle discussion, comme sur l'accueil
+  // La zone de saisie démarre une nouvelle discussion, comme sur l'accueil
   const [draft, setDraft] = useState("");
   const { startChat, starting, error: startError } = useStartChat();
 

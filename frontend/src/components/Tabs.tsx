@@ -8,7 +8,7 @@ const TABS = [
   { id: "reviews", label: "Revue de presse", href: "/revues", Icon: FileText },
 ] as const;
 
-/** Onglets « Chat » / « Revue de presse » (actif = violet plein, comme la maquette). */
+/** Onglets « Chat » / « Revue de presse » (actif = violet plein). */
 export function Tabs({ active }: TabsProps) {
   return (
     <nav aria-label="Sections">
