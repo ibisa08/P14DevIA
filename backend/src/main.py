@@ -10,6 +10,7 @@ from config import get_settings
 from database import get_engine, init_db
 from errors import register_error_handlers
 from routers import auth, chats, reviews
+from tracing import setup_tracing
 
 # Sans configuration, les logs INFO des modules de l'app seraient ignorés
 # (uvicorn ne configure que ses propres loggers)
@@ -21,6 +22,8 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Lève une erreur explicite dès le démarrage si la config est incomplète (ex. JWT_SECRET)
 settings = get_settings()
+# No-op sans MLFLOW_TRACKING_URI (cas de la production et de la CI)
+setup_tracing(settings)
 
 
 @asynccontextmanager

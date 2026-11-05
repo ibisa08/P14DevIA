@@ -13,6 +13,8 @@ os.environ["LLM_MODEL"] = "test"
 # sur le .env, que la config lit aussi.
 os.environ.pop("ANTHROPIC_API_KEY", None)
 os.environ["WORLDNEWS_API_KEY"] = ""
+# Pas de traçage MLflow en test, même si la variable est posée dans le shell ou le .env
+os.environ["MLFLOW_TRACKING_URI"] = ""
 
 import pytest
 from fastapi.testclient import TestClient

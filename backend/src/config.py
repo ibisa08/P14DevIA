@@ -41,9 +41,12 @@ class Settings(BaseSettings):
     top_news_cache_ttl_seconds: int = Field(default=3600, gt=0)
     top_news_failure_ttl_seconds: int = Field(default=300, ge=0)
 
-    @field_validator("worldnews_api_key", mode="before")
+    # Traçage MLflow, réservé au développement local (voir tracing.py). Absent = aucun traçage.
+    mlflow_tracking_uri: str | None = None
+
+    @field_validator("worldnews_api_key", "mlflow_tracking_uri", mode="before")
     @classmethod
-    def empty_key_is_none(cls, value: object) -> object:
+    def empty_value_is_none(cls, value: object) -> object:
         # « WORLDNEWS_API_KEY= » dans le .env vaut absence de clé, pas une clé vide
         if isinstance(value, str) and not value.strip():
             return None
