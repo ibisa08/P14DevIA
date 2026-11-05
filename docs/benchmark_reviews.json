@@ -1,0 +1,287 @@
+{
+  "model": "anthropic:claude-haiku-5-5",
+  "runs": [
+    {
+      "length": 2,
+      "seconds": 7.928899791964795,
+      "input_tokens": 1315,
+      "output_tokens": 1674,
+      "requests": 1,
+      "articles": 4,
+      "error": null
+    },
+    {
+      "length": 6,
+      "seconds": 8.915184666984715,
+      "input_tokens": 2419,
+      "output_tokens": 2106,
+      "requests": 1,
+      "articles": 3,
+      "error": null
+    },
+    {
+      "length": 12,
+      "seconds": 11.127497625013348,
+      "input_tokens": 4043,
+      "output_tokens": 2728,
+      "requests": 1,
+      "articles": 13,
+      "error": null
+    },
+    {
+      "length": 20,
+      "seconds": 5.8511967090307735,
+      "input_tokens": 6087,
+      "output_tokens": 1595,
+      "requests": 1,
+      "articles": 10,
+      "error": null
+    },
+    {
+      "length": 40,
+      "seconds": 11.668349790968932,
+      "input_tokens": 10987,
+      "output_tokens": 2622,
+      "requests": 1,
+      "articles": 5,
+      "error": null
+    },
+    {
+      "length": 2,
+      "seconds": 6.657824666006491,
+      "input_tokens": 1315,
+      "output_tokens": 1326,
+      "requests": 1,
+      "articles": 1,
+      "error": null
+    },
+    {
+      "length": 6,
+      "seconds": 5.908655249979347,
+      "input_tokens": 2419,
+      "output_tokens": 1590,
+      "requests": 1,
+      "articles": 6,
+      "error": null
+    },
+    {
+      "length": 12,
+      "seconds": 10.444789999979548,
+      "input_tokens": 4043,
+      "output_tokens": 2532,
+      "requests": 1,
+      "articles": 8,
+      "error": null
+    },
+    {
+      "length": 20,
+      "seconds": 5.838525291997939,
+      "input_tokens": 6087,
+      "output_tokens": 1591,
+      "requests": 1,
+      "articles": 9,
+      "error": null
+    },
+    {
+      "length": 40,
+      "seconds": 12.621054624964017,
+      "input_tokens": 10987,
+      "output_tokens": 3101,
+      "requests": 1,
+      "articles": 9,
+      "error": null
+    },
+    {
+      "length": 2,
+      "seconds": 6.052929458033759,
+      "input_tokens": 1315,
+      "output_tokens": 1202,
+      "requests": 1,
+      "articles": 3,
+      "error": null
+    },
+    {
+      "length": 6,
+      "seconds": 8.213937958003953,
+      "input_tokens": 2419,
+      "output_tokens": 1862,
+      "requests": 1,
+      "articles": 3,
+      "error": null
+    },
+    {
+      "length": 12,
+      "seconds": 13.308291125053074,
+      "input_tokens": 4043,
+      "output_tokens": 3042,
+      "requests": 1,
+      "articles": 5,
+      "error": null
+    },
+    {
+      "length": 20,
+      "seconds": 6.433512124989647,
+      "input_tokens": 6087,
+      "output_tokens": 1856,
+      "requests": 1,
+      "articles": 10,
+      "error": null
+    },
+    {
+      "length": 40,
+      "seconds": 10.660085749987047,
+      "input_tokens": 10987,
+      "output_tokens": 2617,
+      "requests": 1,
+      "articles": 12,
+      "error": null
+    },
+    {
+      "length": 2,
+      "seconds": 4.68837466702098,
+      "input_tokens": 1315,
+      "output_tokens": 1012,
+      "requests": 1,
+      "articles": 2,
+      "error": null
+    },
+    {
+      "length": 6,
+      "seconds": 12.01874583400786,
+      "input_tokens": 2419,
+      "output_tokens": 2106,
+      "requests": 1,
+      "articles": 3,
+      "error": null
+    },
+    {
+      "length": 12,
+      "seconds": 9.83035750000272,
+      "input_tokens": 4043,
+      "output_tokens": 2351,
+      "requests": 1,
+      "articles": 6,
+      "error": null
+    },
+    {
+      "length": 20,
+      "seconds": 6.024914124980569,
+      "input_tokens": 6087,
+      "output_tokens": 1699,
+      "requests": 1,
+      "articles": 10,
+      "error": null
+    },
+    {
+      "length": 40,
+      "seconds": 9.398198708018754,
+      "input_tokens": 10987,
+      "output_tokens": 2352,
+      "requests": 1,
+      "articles": 11,
+      "error": null
+    },
+    {
+      "length": 2,
+      "seconds": 5.167233416985255,
+      "input_tokens": 1315,
+      "output_tokens": 1052,
+      "requests": 1,
+      "articles": 1,
+      "error": null
+    },
+    {
+      "length": 6,
+      "seconds": 8.087463832984213,
+      "input_tokens": 2419,
+      "output_tokens": 1858,
+      "requests": 1,
+      "articles": 3,
+      "error": null
+    },
+    {
+      "length": 12,
+      "seconds": 10.055953333037905,
+      "input_tokens": 4043,
+      "output_tokens": 2320,
+      "requests": 1,
+      "articles": 8,
+      "error": null
+    },
+    {
+      "length": 20,
+      "seconds": 6.5046521670301445,
+      "input_tokens": 6087,
+      "output_tokens": 1947,
+      "requests": 1,
+      "articles": 13,
+      "error": null
+    },
+    {
+      "length": 40,
+      "seconds": 9.710465333017055,
+      "input_tokens": 10987,
+      "output_tokens": 2531,
+      "requests": 1,
+      "articles": 12,
+      "error": null
+    }
+  ],
+  "summary": [
+    {
+      "messages": 2,
+      "n": 5,
+      "mean": 6.099052400002256,
+      "median": 6.052929458033759,
+      "stdev": 1.2768118040987357,
+      "min": 4.68837466702098,
+      "max": 7.928899791964795,
+      "input_tokens": 1315,
+      "output_tokens": 1253.2
+    },
+    {
+      "messages": 6,
+      "n": 5,
+      "mean": 8.628797508392017,
+      "median": 8.213937958003953,
+      "stdev": 2.2044325661966586,
+      "min": 5.908655249979347,
+      "max": 12.01874583400786,
+      "input_tokens": 2419,
+      "output_tokens": 1904.4
+    },
+    {
+      "messages": 12,
+      "n": 5,
+      "mean": 10.953377916617319,
+      "median": 10.444789999979548,
+      "stdev": 1.4054484427054734,
+      "min": 9.83035750000272,
+      "max": 13.308291125053074,
+      "input_tokens": 4043,
+      "output_tokens": 2594.6
+    },
+    {
+      "messages": 20,
+      "n": 5,
+      "mean": 6.130560083605815,
+      "median": 6.024914124980569,
+      "stdev": 0.31867464183577754,
+      "min": 5.838525291997939,
+      "max": 6.5046521670301445,
+      "input_tokens": 6087,
+      "output_tokens": 1737.6
+    },
+    {
+      "messages": 40,
+      "n": 5,
+      "mean": 10.81163084139116,
+      "median": 10.660085749987047,
+      "stdev": 1.3454835166526484,
+      "min": 9.398198708018754,
+      "max": 12.621054624964017,
+      "input_tokens": 10987,
+      "output_tokens": 2644.6
+    }
+  ]
+}
