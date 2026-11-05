@@ -12,7 +12,7 @@ from sqlmodel import Session
 
 from agents.chat_agent import NEWSFOUNDRY_SYSTEM_PROMPT, chat_agent
 from models import Chat
-from news_fakes import FakeApi, article, make_client, ok, top_news_payload
+from news_fakes import FakeApi, FakeClock, article, make_client, ok, top_news_payload
 from services.news_api import NewsClient
 
 InstallNewsClient = Callable[[NewsClient], None]
@@ -113,6 +113,34 @@ def test_news_api_down_chat_still_created(
     # Échec gardé en cache : pas de nouvel appel voué à l'échec pour le chat suivant
     assert len(api.requests) == 1
     assert "Actualités indisponibles" in stored_prompt(session, second["id"])
+
+
+def test_empty_top_news_does_not_deprive_chats_for_an_hour(
+    client: TestClient, session: Session, alice: dict[str, str], use_news_client: InstallNewsClient
+):
+    responses = iter(
+        [
+            httpx.Response(200, json=top_news_payload([])),
+            httpx.Response(200, json=top_news_payload([[article(7)]])),
+        ]
+    )
+    api = FakeApi(lambda request: next(responses))
+    clock = FakeClock()
+    use_news_client(make_client(api, clock, cache_ttl_seconds=3600, failure_ttl_seconds=300))
+
+    first = create_chat(client, alice)
+    second = create_chat(client, alice)
+
+    # Réponse vide : chats créés sans actualités, un seul appel grâce au cache négatif
+    assert "Actualités indisponibles" in stored_prompt(session, first["id"])
+    assert "Actualités indisponibles" in stored_prompt(session, second["id"])
+    assert len(api.requests) == 1
+
+    # 5 minutes plus tard (et non 1 h) les nouvelles discussions retrouvent les actualités
+    clock.advance(301)
+    third = create_chat(client, alice)
+    assert "Titre 7" in stored_prompt(session, third["id"])
+    assert len(api.requests) == 2
 
 
 def test_missing_key_chat_created_without_news(

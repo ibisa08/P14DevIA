@@ -61,6 +61,10 @@ class InvalidResponseError(NewsApiError):
     """Réponse illisible ou au format inattendu."""
 
 
+class EmptyTopNewsError(NewsApiError):
+    """/top-news a répondu 200 mais sans aucun sujet exploitable."""
+
+
 # --- Sorties simplifiées -------------------------------------------------------------
 
 
@@ -186,6 +190,9 @@ class NewsClient:
         Les succès sont gardés en cache `cache_ttl_seconds`. Les échecs (quota, panne) le sont
         `failure_ttl_seconds` : inutile de retenter à chaque création de chat un appel voué à
         l'échec, qui consommerait du quota ou ferait attendre l'utilisateur jusqu'au timeout.
+        Une réponse sans aucun sujet exploitable est un échec (`EmptyTopNewsError`), jamais un
+        succès : sinon un résultat vide resterait en cache toute l'heure et priverait de
+        contexte toutes les discussions créées entre-temps.
         """
         self._require_key()
         async with self._top_news_lock:
@@ -212,12 +219,27 @@ class NewsClient:
                 raise
 
             articles: list[NewsArticle] = []
+            discarded = 0
             for cluster in response.top_news:
                 article = next(filter(None, map(_simplify, cluster.news)), None)
                 if article:
                     articles.append(article)
+                else:
+                    discarded += 1
                 if len(articles) == TOP_NEWS_LIMIT:
                     break
+
+            if not articles:
+                # Constaté en réel (5/11/2026) : HTTP 200 avec `"top_news": []`, quota débité.
+                # Les compteurs distinguent « l'API n'a rien renvoyé » de « tout a été écarté ».
+                error = EmptyTopNewsError(
+                    "WorldNewsAPI n'a renvoyé aucune actualité exploitable "
+                    f"({len(response.top_news)} sujet(s) reçu(s), {discarded} écarté(s) "
+                    "faute de titre ou d'URL valide)."
+                )
+                self._top_news_cache = (self._clock() + self._failure_ttl, error)
+                raise self._fail("/top-news", error)
+
             self._top_news_cache = (self._clock() + self._cache_ttl, articles)
             return articles
 

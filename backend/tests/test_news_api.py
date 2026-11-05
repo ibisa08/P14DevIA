@@ -10,6 +10,7 @@ import pytest
 from config import Settings
 from services.news_api import (
     SEARCH_MAX_RESULTS,
+    EmptyTopNewsError,
     SUMMARY_MAX_CHARS,
     TOP_NEWS_LIMIT,
     InvalidResponseError,
@@ -250,6 +251,68 @@ def test_top_news_failure_cached_briefly():
 
     asyncio.run(scenario())
     assert len(api.requests) == 2
+
+
+def test_empty_top_news_is_a_failure_not_cached_as_success(caplog: pytest.LogCaptureFixture):
+    # Cas réel du 5/11/2026 : HTTP 200 avec `"top_news": []`
+    responses = iter(
+        [
+            httpx.Response(200, json=top_news_payload([])),
+            httpx.Response(200, json=top_news_payload([[article(1)]])),
+        ]
+    )
+    api = FakeApi(lambda request: next(responses))
+    clock = FakeClock()
+    client = make_client(api, clock, cache_ttl_seconds=3600, failure_ttl_seconds=300)
+    caplog.set_level(logging.WARNING)
+
+    async def scenario() -> None:
+        with pytest.raises(EmptyTopNewsError):
+            await client.get_top_news()
+        # Cache négatif court : pas de nouvel appel (donc pas de point débité pour rien)…
+        clock.advance(299)
+        with pytest.raises(EmptyTopNewsError):
+            await client.get_top_news()
+        assert len(api.requests) == 1
+        # …mais pas une heure : au bout de 5 min l'API est interrogée à nouveau
+        clock.advance(2)
+        assert [a.title for a in await client.get_top_news()] == ["Titre 1"]
+
+    asyncio.run(scenario())
+
+    assert len(api.requests) == 2
+    # Avertissement explicite, avec les compteurs, sans clé
+    assert "aucune actualité exploitable (0 sujet(s) reçu(s), 0 écarté(s)" in caplog.text
+    assert API_KEY not in caplog.text
+
+
+def test_top_news_all_discarded_reports_counts(caplog: pytest.LogCaptureFixture):
+    api = FakeApi(
+        ok(
+            top_news_payload(
+                [
+                    [article(1, url="javascript:alert(1)")],
+                    [article(2, title="   ")],
+                    [article(3, url=None)],
+                ]
+            )
+        )
+    )
+    caplog.set_level(logging.WARNING)
+
+    with pytest.raises(EmptyTopNewsError) as exc_info:
+        asyncio.run(make_client(api).get_top_news())
+
+    # Distingue « rien reçu » de « tout écarté » : 3 reçus, 3 écartés
+    assert "3 sujet(s) reçu(s), 3 écarté(s)" in str(exc_info.value)
+    assert "3 sujet(s) reçu(s), 3 écarté(s)" in caplog.text
+
+
+def test_empty_search_results_are_not_an_error():
+    # Seul /top-news traite le vide comme un échec : une recherche sans résultat est légitime
+    api = FakeApi(ok(search_payload([])))
+
+    assert asyncio.run(make_client(api).search_news("sujet très rare")) == []
 
 
 def test_requests_spaced_by_one_second():
