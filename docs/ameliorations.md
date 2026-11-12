@@ -207,7 +207,7 @@ Classement complet, du plus au moins prioritaire dans chaque groupe :
 | A5 | Cache de prompt Anthropic | Moyen à élevé (entrée = 83 % du coût) | Moyen |
 | B1 | Limitation des tentatives de connexion (slowapi) | Élevé (sécurité) | Faible |
 | B2 | Qualité des actualités du jour | Moyen (2 sujets sur 8) | Faible à moyen |
-| B3 | Pertinence des résultats de `search_news` | Moyen à élevé (4 articles sur 10) | Moyen |
+| B3 | Pertinence des résultats de `search_news` | Moyen à élevé (32 % pertinents en lecture stricte) | Moyen |
 | B4 | Références numérotées au lieu d'URL longues | Moyen (28 % des caractères) | Moyen |
 | B5 | Repli sur la veille si `/top-news` est vide | Faible à moyen | Faible |
 | B6 | Cache des recherches et suivi du quota partagé | Moyen | Moyen |
@@ -238,18 +238,48 @@ Classement complet, du plus au moins prioritaire dans chaque groupe :
 - **Objectif** : 8 sujets distincts et exploitables sur 8, vérifié sur une semaine de relevés.
 
 ### B3 — Pertinence des résultats de `search_news`
-- **Constat** (test réel du 29/10/2026) : pour « intelligence artificielle éducation », 10
-  articles chargés en 2 recherches, dont **4 seulement sur le sujet** (les autres : Canada et UE,
-  colère sociale en France…). Le tri par date (`sort=publish-time`) fait remonter des articles
-  récents qui ne mentionnent les mots-clés qu'en passant. Chaque recherche coûte 1,05 point et
-  ajoute environ 2 s au message.
-- **Solution** : chercher dans les titres seulement (`text-match-indexes=title`) ou combiner
-  titre et dates récentes (`earliest-publish-date` à J-7) au lieu du tri par date seul.
-- **Étapes** : (1) constituer une dizaine de requêtes types ; (2) jouer chaque réglage une fois
-  (≈ 1 point par requête) ; (3) juger la pertinence article par article ; (4) retenir le réglage
-  le plus pertinent.
-- **Objectif** : au moins 80 % des articles renvoyés jugés pertinents sur le jeu de requêtes, et
-  une recherche au lieu de deux par question en moyenne (moitié moins de points).
+- **Constat** : deux mesures, protocole différent, même conclusion : le tri par date
+  (`sort=publish-time`) fait remonter des articles récents qui ne mentionnent les mots-clés
+  qu'en passant.
+  - *29/10/2026, test réel* : pour « intelligence artificielle éducation », 10 articles chargés en
+    2 recherches, dont **4 seulement sur le sujet** (les autres : Canada et UE, colère sociale en
+    France…). Chaque recherche coûte 1,05 point et ajoute environ 2 s au message.
+  - *05/11/2026, mesure systématique* : critère « le thème est le sujet principal de l'article,
+    avec ses deux notions » ; 5 requêtes × 5 articles = 25 articles.
+
+    | Requête | Articles pertinents (lecture stricte) |
+    |---|---|
+    | réforme des retraites | 3 / 5 |
+    | inflation prix alimentaires | 2 / 5 |
+    | intelligence artificielle régulation | 1 / 5 |
+    | vaccin grippe | 2 / 5 |
+    | cessez-le-feu Gaza | 0 / 5 |
+    | **Total** | **8 / 25 (32 %)** |
+
+    En lecture **indulgente** (le thème est abordé sans être le sujet principal) : 15 / 25 (60 %).
+    Constats associés : 25 articles sur 25 en français (le filtre de langue n'est donc pas la
+    solution) ; 25 articles pour seulement **20 sujets** (dépêches reprises par plusieurs médias) ;
+    le matching est trop large sur les requêtes à plusieurs mots ; entités HTML brutes dans 4 résumés (corrigé, voir « Déjà traité »).
+- **Solution** :
+  1. écrire dans la docstring du tool des **expressions entre guillemets** (`"réforme des
+     retraites"`), que l'API accepte déjà (syntaxe « expression exacte ») : le modèle est
+     l'auteur de la requête, c'est lui qu'il faut guider ;
+  2. **ne pas trier par date.** Vérifié dans la documentation officielle de `/search-news`
+     (<https://worldnewsapi.com/docs/search-news/>, paramètres relevés le 12/11/2026) : `sort` ne
+     documente qu'une valeur, `publish-time` (avec `sort-direction` `ASC` ou `DESC`) ; **il n'existe
+     pas de tri par pertinence documenté**. Deux voies : omettre `sort` (l'ordre par défaut n'est pas
+     documenté, donc à mesurer : 1 point par requête) ou reclasser côté application, ce que fait le
+     RAG de l'étape 8 (recherche sémantique sur le texte des articles) ;
+  3. **dédoublonner par titre** normalisé côté client (casse, ponctuation, espaces), pour ne pas
+     compter deux fois une dépêche reprise.
+  Piste à comparer si cela ne suffit pas : chercher dans les titres seulement
+  (`text-match-indexes=title`).
+- **Étapes** : (1) rejouer les 5 requêtes du 05/11 avec le même critère, avant et après chaque
+  changement (≈ 1 point par requête) ; (2) modifier la docstring, mesurer ; (3) tester la suppression de `sort`,
+  mesurer ; (4) ajouter le dédoublonnage (test unitaire sur des titres quasi identiques) ; (5)
+  retenir la combinaison la plus pertinente.
+- **Objectif** : **au moins 60 % d'articles pertinents en lecture stricte** (contre 32 %), même
+  protocole, mêmes 5 requêtes, et plus aucun doublon de titre dans les résultats d'une recherche.
 
 ### B4 — Références numérotées au lieu d'URL longues
 - **Constat** : dans les réponses du chat, les URL font 152 caractères en moyenne (max 228) et
@@ -471,7 +501,9 @@ la trace de M2, environ 2,9 s (0,76 + 1,76 + 0,32 s) sur 6,7 s, soit un gain per
 (estimation tirée de la trace, non mesurée).
 
 ### M4 — Défauts de données constatés (essais réels du 29/10 et du 05/11/2026)
-- `search_news` : 4 articles pertinents sur 10 chargés (voir B3).
+- `search_news` : 4 articles pertinents sur 10 chargés le 29/10 ; 8 sur 25 (32 %) en lecture
+  stricte, 15 sur 25 (60 %) en lecture indulgente le 05/11, 25 articles pour 20 sujets, 4 résumés
+  avec entités HTML brutes (voir B3).
 - Actualités du jour : 2 sujets sur 8 inexploitables (voir B2).
 - Budget `/top-news` : jusqu'à 24 points par jour avec le cache d'1 h (voir A3).
 - URL longues : 152 caractères en moyenne (max 228), 28 % des caractères des réponses qui en
@@ -480,6 +512,12 @@ la trace de M2, environ 2,9 s (0,76 + 1,76 + 0,32 s) sur 6,7 s, soit un gain per
   (voir « Déjà traité »).
 
 ## Déjà traité
+
+### Entités HTML brutes dans les titres et résumés
+- **Constat** : 4 résumés sur 25 de la mesure du 05/11/2026 contenaient des entités brutes
+  (`&#039;`, `&amp;`…), envoyées telles quelles au modèle et affichées dans ses réponses.
+- **Correction** : `html.unescape` sur le titre et le résumé dans le client WorldNewsAPI, avant la
+  troncature (une entité coupée en deux resterait illisible), avec un test.
 
 ### Réponse `/top-news` vide gardée une heure en cache
 - **Constat** : le 05/11/2026, HTTP 200 avec `"top_news": []` (quota débité). Ce résultat vide
