@@ -65,6 +65,31 @@ def test_top_news_simplified():
     assert set(first.model_dump()) == {"title", "summary", "url", "source", "published_at"}
 
 
+def test_html_entities_decoded_in_title_and_summary():
+    # Constaté en réel : entités HTML brutes dans des résumés (apostrophes, esperluettes)
+    api = FakeApi(
+        ok(
+            search_payload(
+                [
+                    article(
+                        1,
+                        title="L&#039;Europe &amp; l&rsquo;IA",
+                        summary="Plan d&#039;action&nbsp;: 5 &lt; 8",
+                    ),
+                    # Entités aussi dans le texte intégral utilisé quand le résumé manque
+                    article(2, summary=None, text="D&#039;après le ministre"),
+                ]
+            )
+        )
+    )
+
+    articles = asyncio.run(make_client(api).search_news("intelligence artificielle"))
+
+    assert articles[0].title == "L'Europe & l\u2019IA"
+    assert articles[0].summary == "Plan d'action : 5 < 8"
+    assert articles[1].summary == "D'après le ministre"
+
+
 def test_top_news_request_and_limit():
     api = FakeApi(ok(top_news_payload([[article(i)] for i in range(20)])))
 

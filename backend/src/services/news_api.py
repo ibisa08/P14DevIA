@@ -7,6 +7,7 @@ on ne renvoie que titre, résumé tronqué, URL, source et date, pour limiter le
 """
 
 import asyncio
+import html
 import logging
 import re
 import time
@@ -125,13 +126,15 @@ def _parse_publish_date(value: str | None) -> datetime | None:
 
 def _simplify(raw: _RawArticle) -> NewsArticle | None:
     """Article simplifié, ou None s'il manque un titre ou une URL http(s)."""
-    title = (raw.title or "").strip()
+    # WorldNewsAPI renvoie parfois des entités HTML brutes (&#039;, &amp;, &nbsp;) : on les
+    # décode avant la troncature, sinon une entité coupée en deux resterait illisible
+    title = html.unescape(raw.title or "").strip()
     url = (raw.url or "").strip()
     parts = urlsplit(url)
     if not title or parts.scheme not in ("http", "https") or not parts.hostname:
         return None
     # Résumé absent de certains articles : début du texte intégral à la place
-    summary = _truncate(raw.summary or raw.text or "", SUMMARY_MAX_CHARS)
+    summary = _truncate(html.unescape(raw.summary or raw.text or ""), SUMMARY_MAX_CHARS)
     return NewsArticle(
         title=_truncate(title, SUMMARY_MAX_CHARS),
         summary=summary or "Résumé indisponible.",
