@@ -51,6 +51,10 @@ Les deux plateformes redéploient automatiquement à chaque push sur `main`.
 > **Limites Railway** (page des plans) : image de 4 Go sur Trial et Free, 100 Go sur Hobby ; aucune
 > limite de taille ni de durée de build documentée. 1,2 Go passe donc, même sur le plan d'essai.
 >
+> **Fin de l'essai.** L'essai Railway prend fin vers le 5 décembre 2026. `RAG_ENABLED` reste à
+> `false` tant que le plan Hobby n'est pas pris : l'essai limite chaque service à 1 Go de RAM, et le RAG
+> en consomme ~800 Mo.
+>
 > **Image et mémoire.** Le modèle d'embeddings est téléchargé à la construction de l'image
 > (`Dockerfile`, argument `EMBEDDING_MODEL`) : l'image passe de 394 Mo à ~1,2 Go (mesure Docker arm64).
 > Avec `RAG_ENABLED=true`, la RAM monte à ~800 Mo dès la première revue : sur le plan d'essai

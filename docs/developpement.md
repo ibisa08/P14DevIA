@@ -93,7 +93,7 @@ de chaque appel est journalisé).
 
 ```bash
 cd backend
-uv run pytest            # 99 tests
+uv run pytest            # 129 tests (+1 PostgreSQL optionnel, ignoré sans TEST_POSTGRES_URL)
 uv run pytest tests/test_chats_authz.py -v     # un fichier
 ```
 

@@ -154,7 +154,8 @@ décrite dans [`architecture.md`](architecture.md) et la procédure de mise en l
   derrière un verrou. Le paquet `llama-index-embeddings-fastembed` n'est pas utilisé (Python < 3.13
   seulement) : une sous-classe de `BaseEmbedding` d'environ 30 lignes suffit.
 - **Mesures dans un conteneur Linux limité à 1 Go, sans swap** (Docker, arm64 ; Railway est en amd64 :
-  tailles et temps à reconfirmer là-bas) : image **1,21 Go** contre 394 Mo avant le RAG (dépendances
+  tailles et temps non mesurés sur amd64 : **limite connue**, la taille de l'image et le temps de
+  vectorisation peuvent différer sur Railway) : image **1,21 Go** contre 394 Mo avant le RAG (dépendances
   +246 Mo, modèle embarqué au build +266 Mo, sinon chaque redémarrage le retélécharge). RAM de
   l'application seule 134 Mo ; modèle chargé **~780 Mo** ; pire cas (50 articles de 6 000 caractères,
   ~700 extraits) **805 Mo** de pic, vectorisé en 15 s (le délai du RAG est de 20 s). Ça passe, mais avec
@@ -163,7 +164,8 @@ décrite dans [`architecture.md`](architecture.md) et la procédure de mise en l
 - **Piège trouvé en conteneur.** uv installe par liens durs et LlamaIndex refuse de lire ses fichiers
   de données multi-liens (« Security Violation », CWE-59) : le RAG échouait en silence (mode dégradé).
   Le Dockerfile utilise `UV_LINK_MODE=copy`.
-- **Limites connues.** Mesure du 19/11/2026 sur 25 vrais articles (5 requêtes, voir B3 dans `ameliorations.md`) : le RAG
+- **Limites connues.** Exemple réel sans RAG le 19/11/2026 (revue « la politique en France » : 6 articles dont des alertes à
+  la bombe et un incendie de lycée) : voir B3. Mesure du 19/11/2026 sur 25 vrais articles (5 requêtes, voir B3 dans `ameliorations.md`) : le RAG
   écarte 7 articles hors sujet sur 25 et garde tous les pertinents, mais la précision stricte ne passe
   que de 20 % à 28 % (objectif 60 % non atteint), pour +28 % de coût et +2 s par revue. Avant cela,
   seul un essai minuscule (5 requêtes, 6 passages : pertinents 0,55 à 0,72, hors sujet ≤ 0,27) a servi
@@ -175,7 +177,8 @@ décrite dans [`architecture.md`](architecture.md) et la procédure de mise en l
 - **Découpage par mots, pas par tokens.** Le tokenizer par défaut de LlamaIndex (tiktoken) télécharge
   son vocabulaire au premier usage : il échouerait hors ligne (CI, conteneur sans accès).
 - **Seuil de similarité configurable (`RAG_MIN_SCORE`, 0,4).** Placé entre les scores d'un petit essai (pertinents ≥ 0,55,
-  hors sujet ≤ 0,27), pas un réglage validé : à calibrer avec le protocole strict de `ameliorations.md` (B3).
+  hors sujet ≤ 0,27), pas un réglage validé. **Limite connue** : calibré sur ce petit essai, puis comparé à la mesure du
+  19/11/2026 sur 25 articles (B3), sans second échantillon : le seuil de 0,4 n'est pas optimisé.
 - **Dégradation silencieuse, jamais de 500.** RAG désactivé, pas d'article,
   rien de pertinent, erreur du modèle ou délai dépassé : la revue est générée comme avant, le motif est
   journalisé (sans texte d'article ni sujet). Le délai ne peut pas tuer le thread de l'appel en cours,

@@ -275,7 +275,9 @@ Classement complet, du plus au moins prioritaire dans chaque groupe :
   - *19/11/2026, mesure du RAG (étape 8)* : mêmes 5 requêtes et même critère strict, **nouveaux
     résultats** (l'API trie par date : ce ne sont plus les articles du 05/11), 25 articles, solde
     WorldNewsAPI 50,00 → 44,75 points (5,25). Jugement fait par l'assistant de développement, pas par
-    un relecteur indépendant : à recouper. Pertinents au sens strict : 0, 0, 0, 4 et 1 sur 5, soit
+    un relecteur indépendant. **Limite connue** : un seul évaluateur, jugements non recoupés ; les
+    cas limites (par exemple les articles sur l'incursion à Gaza « depuis le cessez-le-feu ») ont été
+    tranchés par l'évaluateur seul. Pertinents au sens strict : 0, 0, 0, 4 et 1 sur 5, soit
     **5 / 25 (20 %)** ; au sens indulgent : 1, 1, 1, 4 et 4, soit 11 / 25 (44 %). Le RAG réel
     (MiniLM, `RAG_MIN_SCORE=0,4`, `RAG_TOP_K=12`) retient 3, 4, 3, 4 et 4 articles : **18 / 25**.
     Il écarte 7 articles, **tous hors sujet** (arbres d'Écosse, sommet en Chine, Covid, croissance…)
@@ -291,6 +293,15 @@ Classement complet, du plus au moins prioritaire dans chaque groupe :
     a cité dans une vraie discussion. Sensibilité du seuil sur ces seules données (risque de
     surajustement : à ne pas retenir sans autre échantillon) : à 0,55 la précision stricte monterait
     à ~33 % sans perdre de pertinent.
+  - *19/11/2026, exemple concret en production, avant RAG (`RAG_ENABLED=false`)* : revue générée
+    sur le sujet « la politique en France ». Elle retient **6 articles**, dont plusieurs hors sujet :
+    alertes à la bombe, blocus de lycées, incendie d'un lycée, élection en Corse. Sa synthèse générale
+    reconnaît elle-même qu'**aucune grande actualité politique nationale n'y figure**. Sans RAG, la
+    revue reprend tout ce que la discussion a cité, et la discussion a cité ce que `search_news` a
+    renvoyé : la cause est ici la qualité des résultats de la recherche, que le RAG ne corrigerait
+    qu'en partie (il écarte le hors sujet manifeste, pas le thématiquement proche, voir la mesure
+    ci-dessus). Constat relevé par le propriétaire du projet sur la revue affichée ; le détail des 6
+    articles n'est pas conservé ici.
 - **Solution** :
   1. écrire dans la docstring du tool des **expressions entre guillemets** (`"réforme des
      retraites"`), que l'API accepte déjà (syntaxe « expression exacte ») : le modèle est
@@ -478,8 +489,13 @@ Données brutes : `docs/benchmark_reviews.json`.
 **Coût du banc d'essai** : 26 appels (échauffement compris), **0,0387 $ calculé** d'après les
 tokens mesurés (un premier lancement interrompu après l'échauffement s'y ajoute, environ
 0,0004 $) (tarif
-Haiku 5.5 : 0,10 $ par million de tokens en entrée, 0,50 $ en sortie). Ce montant est un calcul,
-pas le coût affiché dans la console Anthropic. Estimation faite avant le lancement : 0,0181 $,
+Haiku 5.5 : 0,10 $ par million de tokens en entrée, 0,50 $ en sortie). Ce montant est un calcul.
+**Coût constaté dans la console Anthropic** (consultée le 12/11/2026) : environ 0,06 $ pour
+l'ensemble de l'usage du 1er au 12 novembre 2026 (toutes clés, Claude Haiku 5.5, arrondi à deux
+décimales), dont l'essentiel le 5 novembre. **Le coût du banc d'essai seul n'est pas isolé dans la
+console** : ce chiffre couvre tout l'usage de la période (développement, tests réels, banc d'essai) et
+ne se compare donc pas directement aux 0,0387 $ calculés, qui restent la seule valeur propre au banc
+d'essai. Estimation faite avant le lancement : 0,0181 $,
 soit 2,1 fois trop bas : les tokens d'entrée réels étaient supérieurs de 34 % à 77 % (le texte
 français fait environ 2,65 caractères par token, pas 3,5) et ceux de sortie de 1,7 à 3,8 fois
 (le raisonnement du modèle compte dans la sortie, voir A1).
