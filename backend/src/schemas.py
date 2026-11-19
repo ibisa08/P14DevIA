@@ -92,4 +92,5 @@ class PressReviewRead(BaseModel):
     topic: str
     title: str
     content: ReviewContent
+    rag_used: bool
     created_at: UtcDatetime

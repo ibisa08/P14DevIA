@@ -41,6 +41,21 @@ class Settings(BaseSettings):
     top_news_cache_ttl_seconds: int = Field(default=3600, gt=0)
     top_news_failure_ttl_seconds: int = Field(default=300, ge=0)
 
+    # Recherche sémantique des revues de presse (RAG), désactivée par défaut : le modèle
+    # d'embeddings tourne en local (fastembed, ONNX) et pèse en RAM. Désactivée, la revue est
+    # générée à partir de la discussion seule, sans charger le modèle.
+    rag_enabled: bool = False
+    # Modèle fastembed MULTILINGUE (liste dans docs/decisions.md). Un modèle anglais comprendrait
+    # mal le français. Téléchargé à la première utilisation s'il n'est pas déjà dans l'image.
+    embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    # Seuil de similarité cosinus (0 à 1) sous lequel un extrait n'est pas retenu. Valeur de
+    # départ à calibrer sur des recherches réelles (voir docs/ameliorations.md).
+    rag_min_score: float = Field(default=0.4, ge=0, le=1)
+    # Nombre d'extraits récupérés avant filtrage par le seuil
+    rag_top_k: int = Field(default=12, gt=0)
+    # Au-delà, on abandonne la recherche sémantique et on génère la revue sans elle
+    rag_timeout_seconds: float = Field(default=20, gt=0)
+
     # Traçage MLflow, réservé au développement local (voir tracing.py). Absent = aucun traçage.
     mlflow_tracking_uri: str | None = None
 

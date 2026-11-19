@@ -3,7 +3,7 @@ from collections.abc import Generator
 from functools import lru_cache
 
 from fastapi import Depends
-from sqlalchemy import Engine
+from sqlalchemy import Engine, inspect, text
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from auth.security import hash_password
@@ -32,9 +32,38 @@ def get_session(engine: Engine = Depends(get_engine)) -> Generator[Session, None
         yield session
 
 
+def add_missing_columns(engine: Engine) -> None:
+    """Ajoute à une table existante les colonnes apparues depuis sa création.
+
+    `create_all` crée les tables absentes mais ne modifie jamais une table existante : sans cette
+    étape, la colonne `rag_used` manquerait en production et chaque création de revue échouerait.
+    Seules les colonnes avec une valeur par défaut serveur sont ajoutées (additif, sans perte).
+    Une vraie migration (Alembic) reste une piste d'amélioration, voir docs/ameliorations.md (B8).
+    """
+    inspector = inspect(engine)
+    for table in SQLModel.metadata.sorted_tables:
+        if not inspector.has_table(table.name):
+            continue
+        existing = {column["name"] for column in inspector.get_columns(table.name)}
+        for column in table.columns:
+            if column.name in existing or column.server_default is None:
+                continue
+            column_type = column.type.compile(dialect=engine.dialect)
+            default = column.server_default.arg.compile(dialect=engine.dialect)
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" '
+                        f"{column_type} NOT NULL DEFAULT {default}"
+                    )
+                )
+            logger.info("Colonne %s.%s ajoutée", table.name, column.name)
+
+
 def init_db(engine: Engine) -> None:
     """Crée les tables manquantes et l'utilisateur de test sur l'engine fourni."""
     SQLModel.metadata.create_all(engine)
+    add_missing_columns(engine)
     logger.info("Base de données initialisée (tables créées si absentes)")
 
     # Création de l'utilisateur de test (pas d'inscription dans l'application)

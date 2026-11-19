@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any, Optional
 
-from sqlalchemy import JSON, DateTime, UniqueConstraint
+from sqlalchemy import JSON, DateTime, UniqueConstraint, false
 from sqlmodel import Field, SQLModel
 
 
@@ -42,6 +42,9 @@ class PressReview(SQLModel, table=True):
     # Sortie structurée de l'agent : {title, summary, articles: [{title, summary, source, url}]}
     content: dict[str, Any] = Field(sa_type=JSON)
     created_at: datetime = Field(default_factory=utc_now, sa_type=DateTime(timezone=True))
+    # La revue s'appuie-t-elle sur des articles retenus par la recherche sémantique (RAG) ?
+    # server_default : les revues créées avant l'ajout de la colonne valent False (voir database.py)
+    rag_used: bool = Field(default=False, sa_column_kwargs={"server_default": false()})
 
 
 class ChatArticle(SQLModel, table=True):
