@@ -13,6 +13,11 @@ jobs:
   backend-tests:
     name: Tests backend (pytest)
     runs-on: ubuntu-latest
+    # uv installe par liens durs depuis son cache (Linux) et LlamaIndex refuse de lire ses fichiers
+    # de données multi-liens (« Security Violation », CWE-59) : le RAG passerait en repli et les
+    # tests échoueraient. Les paquets sont donc copiés (voir docs/developpement.md).
+    env:
+      UV_LINK_MODE: copy
     defaults:
       run:
         working-directory: backend

@@ -24,6 +24,13 @@ uv sync
 uv run --env-file .env src/main.py     # API sur http://localhost:8000
 ```
 
+> **Linux : `UV_LINK_MODE=copy`.** Sous Linux, `uv` installe par défaut les paquets en liens durs
+> depuis son cache, et LlamaIndex refuse alors de lire ses fichiers de données (`Security Violation
+> [pathsec.open] … multiply-linked file … nltk_cache/…/stopwords/english`, CWE-59) : la recherche
+> sémantique tombe en repli et les tests du RAG échouent. Exporte `UV_LINK_MODE=copy` avant
+> `uv sync` (ou `uv sync --link-mode=copy`). Sur macOS, `uv` copie déjà les fichiers : le problème ne
+> s'y voit pas. Le `Dockerfile` et la CI (`ci.yml`) le définissent déjà.
+
 Au démarrage, l'application crée les tables manquantes et le compte de test
 `test@test.com` / `test`. Sans `JWT_SECRET` (ou avec moins de 32 caractères), elle refuse de démarrer
 avec un message explicite.
