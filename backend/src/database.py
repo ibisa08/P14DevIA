@@ -50,10 +50,14 @@ def add_missing_columns(engine: Engine) -> None:
                 continue
             column_type = column.type.compile(dialect=engine.dialect)
             default = column.server_default.arg.compile(dialect=engine.dialect)
+            # PostgreSQL : IF NOT EXISTS rend l'ordre idempotent même si deux instances démarrent en
+            # même temps (déploiement qui se chevauche) et voient toutes deux la colonne manquante.
+            # SQLite (tests) ne connaît pas cette clause ; la vérification ci-dessus lui suffit.
+            if_not_exists = "IF NOT EXISTS " if engine.dialect.name == "postgresql" else ""
             with engine.begin() as connection:
                 connection.execute(
                     text(
-                        f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" '
+                        f'ALTER TABLE "{table.name}" ADD COLUMN {if_not_exists}"{column.name}" '
                         f"{column_type} NOT NULL DEFAULT {default}"
                     )
                 )

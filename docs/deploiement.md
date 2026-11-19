@@ -110,3 +110,18 @@ reproductible. Calendrier prévu :
   les coûts de chacun se suivent séparément.
 - La clé WorldNewsAPI est partagée entre local et production (plan gratuit, aucun coût) : leur quota
   de 50 points par jour est donc commun.
+
+## Retour arrière de la colonne `rag_used`
+
+Au démarrage, `add_missing_columns` exécute sur PostgreSQL, une seule fois (idempotent) :
+
+```sql
+ALTER TABLE "pressreview" ADD COLUMN IF NOT EXISTS "rag_used" BOOLEAN NOT NULL DEFAULT false;
+```
+
+Pour revenir à une version du code sans cette colonne (l'ancien code ignore la colonne en trop, ce
+retour est donc facultatif) :
+
+```sql
+ALTER TABLE "pressreview" DROP COLUMN IF EXISTS "rag_used";
+```
