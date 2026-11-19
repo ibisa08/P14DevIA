@@ -117,6 +117,74 @@ décrite dans [`architecture.md`](architecture.md) et la procédure de mise en l
   ailleurs qu'en local. Le traçage est un outil de mesure, jamais une condition de démarrage : sans
   MLflow ou sans serveur, l'application démarre avec un avertissement.
 
+### Recherche sémantique des revues (RAG)
+
+- **Pourquoi.** La revue ne doit citer que des articles pertinents pour le sujet demandé, avec un
+  résumé par article. Auparavant elle ne voyait que la transcription texte : une discussion longue
+  mêlait plusieurs sujets, et les articles n'y figuraient que si l'assistant les avait cités.
+- **LlamaIndex, index en mémoire, non persisté.** `VectorStoreIndex` reconstruit à chaque revue
+  (quelques dizaines d'extraits) puis jeté : aucune base vectorielle à héberger ni à synchroniser, et
+  l'index ne peut jamais être périmé ni partagé entre utilisateurs.
+- **Texte intégral dans une table `ChatArticle`, pas dans `Chat.loaded_articles`.** Le texte (6 000
+  caractères par article, ~2 300 tokens) serait relu à chaque affichage de la discussion s'il était
+  dans la ligne du chat. `create_all` crée la table sans migration manuelle. Il est lu dans la réponse
+  `/search-news` déjà payée : zéro point WorldNewsAPI de plus, et aucun contournement de paywall (on
+  garde ce que l'API renvoie). Le champ `NewsArticle.text` est `exclude=True` : il n'est jamais envoyé
+  au modèle de chat (testé). 50 articles au plus par discussion.
+- **Discussions existantes.** Elles n'ont pas de texte stocké : leurs articles sont ignorés, et sans
+  aucun article la revue est générée comme avant.
+- **Embeddings en local avec fastembed (ONNX), modèle multilingue.** Raisons : le sujet attend un
+  RAG LlamaIndex autonome, sans service tiers ni clé supplémentaire, et les textes des articles ne
+  quittent pas notre infrastructure. Modèles multilingues fastembed (liste de `list_supported_models()`,
+  fastembed 0.9.1) : `paraphrase-multilingual-MiniLM-L12-v2` (0,22 Go, 384 dim., 128 tokens, ~50
+  langues), `potion-multilingual-128M` (0,51 Go, 256 dim.), `paraphrase-multilingual-mpnet-base-v2`
+  (1,0 Go, 768 dim.), `multilingual-e5-large` (2,24 Go) et `jina-embeddings-v3` (2,29 Go). RAM de pic
+  mesurée (macOS, 40 extraits) : MiniLM 780 Mo, potion 951 Mo, mpnet 1 618 Mo ; e5-large et jina v3
+  dépassent 1 Go rien qu'en fichier. **Choix : MiniLM**, le seul qui tienne dans 1 Go. `EMBEDDING_MODEL`
+  permet d'en changer (plan Hobby : mpnet ou e5-large), en adaptant `CHUNK_SIZE_WORDS` : MiniLM tronque
+  à 128 tokens, d'où des extraits de 70 mots (~105 tokens en français).
+- **Traçabilité : `PressReview.rag_used` et logs de repli.** Chaque repli journalise un WARNING avec
+  sa cause : `[timeout]`, `[modèle indisponible]` ou `[erreur d'index]` (sans texte d'article, sujet
+  ni clé). Un RAG désactivé par configuration, un chat sans article ou sans article pertinent ne sont
+  pas des pannes : log INFO seulement. `rag_used` vaut vrai si au moins un article retenu a nourri la
+  revue. La colonne est ajoutée au démarrage aux bases existantes, `create_all` ne le faisant pas.
+- **Désactivé par défaut (`RAG_ENABLED=false`).** Le modèle pèse ~650 Mo de RAM de plus une fois chargé.
+  Désactivé, la revue est générée comme avant et rien n'est chargé. Activé, le modèle est chargé **à
+  la première revue** (pas à l'import de l'app, testé en sous-processus), une seule fois par processus,
+  derrière un verrou. Le paquet `llama-index-embeddings-fastembed` n'est pas utilisé (Python < 3.13
+  seulement) : une sous-classe de `BaseEmbedding` d'environ 30 lignes suffit.
+- **Mesures dans un conteneur Linux limité à 1 Go, sans swap** (Docker, arm64 ; Railway est en amd64 :
+  tailles et temps à reconfirmer là-bas) : image **1,21 Go** contre 394 Mo avant le RAG (dépendances
+  +246 Mo, modèle embarqué au build +266 Mo, sinon chaque redémarrage le retélécharge). RAM de
+  l'application seule 134 Mo ; modèle chargé **~780 Mo** ; pire cas (50 articles de 6 000 caractères,
+  ~700 extraits) **805 Mo** de pic, vectorisé en 15 s (le délai du RAG est de 20 s). Ça passe, mais avec
+  ~200 Mo de marge : plusieurs revues simultanées ou un pic de la base peuvent dépasser 1 Go, d'où la
+  désactivation par défaut sur le plan d'essai. Le chargement du modèle prend ~5 s à la première revue.
+- **Piège trouvé en conteneur.** uv installe par liens durs et LlamaIndex refuse de lire ses fichiers
+  de données multi-liens (« Security Violation », CWE-59) : le RAG échouait en silence (mode dégradé).
+  Le Dockerfile utilise `UV_LINK_MODE=copy`.
+- **Limites connues.** La qualité du modèle sur le français n'est pas mesurée sur de vrais articles :
+  seul un essai minuscule (5 requêtes, 6 passages : pertinents 0,55 à 0,72, hors sujet ≤ 0,27) a servi
+  à placer le seuil à 0,4. MiniLM est un modèle de paraphrase de petite taille : il peut rater des
+  articles pertinents formulés très différemment du sujet. Le protocole strict de `ameliorations.md`
+  (B3) reste à rejouer.
+- **Plan Hobby (juillet).** Avec plus de RAM, passer `RAG_ENABLED=true`, et si la qualité est
+  insuffisante tester `paraphrase-multilingual-mpnet-base-v2` (voir la piste A6).
+- **Découpage par mots, pas par tokens.** Le tokenizer par défaut de LlamaIndex (tiktoken) télécharge
+  son vocabulaire au premier usage : il échouerait hors ligne (CI, conteneur sans accès).
+- **Seuil de similarité configurable (`RAG_MIN_SCORE`, 0,4).** Placé entre les scores d'un petit essai (pertinents ≥ 0,55,
+  hors sujet ≤ 0,27), pas un réglage validé : à calibrer avec le protocole strict de `ameliorations.md` (B3).
+- **Dégradation silencieuse, jamais de 500.** RAG désactivé, pas d'article,
+  rien de pertinent, erreur du modèle ou délai dépassé : la revue est générée comme avant, le motif est
+  journalisé (sans texte d'article ni sujet). Le délai ne peut pas tuer le thread de l'appel en cours,
+  qui va au bout de son calcul (la RAM reste occupée jusque-là).
+- **Isolation.** Les articles sont lus après `get_owned_chat` (404 pour le chat d'un autre) et par une
+  jointure qui filtre aussi sur le propriétaire ; l'écriture se fait sur le chat déjà vérifié.
+  Testé : revue d'un chat étranger (404, rien d'indexé), revue de son propre chat avec le même sujet
+  qu'un autre utilisateur, lecture directe avec le mauvais couple chat/utilisateur, ajout d'articles
+  à un chat étranger.
+
+
 ## Choix de prompts
 
 Pour chaque choix : ce qu'il fait, et pourquoi. Les textes sont dans
@@ -225,6 +293,12 @@ l'outil.
 - **Discussion transmise en transcription texte (« Journaliste : … / Assistant : … »).** L'historique
   brut contient des appels à `search_news` qu'un agent sans outil pourrait voir refusés par le
   fournisseur ; le texte affiché suffit, c'est ce que le journaliste a lu.
+- **Sources RAG entre balises `<sources>`, avec consigne « pour eux seuls ».** Quand la recherche
+  sémantique retient des articles, leurs extraits, titres et URL exacts sont ajoutés au prompt et
+  l'agent doit produire une entrée par article retenu, sans en ajouter : c'est ce qui limite la revue
+  aux articles pertinents. Comme pour les actualités, le contenu est présenté comme une donnée, jamais
+  une consigne. Le bloc n'est ajouté que s'il y a des sources : sans elles le prompt est identique à
+  l'ancien.
 - **Sujet demandé dans le prompt utilisateur.** Il oriente la revue sans modifier les instructions
   de l'agent.
 

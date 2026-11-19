@@ -47,13 +47,15 @@ backend/
 │   │   ├── chats.py          # liste, création, lecture, envoi de message
 │   │   └── reviews.py        # génération et liste des revues
 │   ├── services/
-│   │   └── news_api.py       # client WorldNewsAPI : cache, débit limité, sorties simplifiées
+│   │   ├── news_api.py       # client WorldNewsAPI : cache, débit limité, sorties simplifiées
+│   │   └── rag.py            # recherche sémantique (LlamaIndex + embeddings locaux fastembed), jamais bloquante
 │   └── agents/
 │       ├── chat_agent.py     # prompt système, outil search_news, appel du modèle
 │       ├── review_agent.py   # agent sans outil, sortie structurée
 │       └── history.py        # (dé)sérialisation de l'historique, vue pour le front, transcription
 └── tests/                # conftest (base isolée), auth, isolation des chats et des revues,
-                          # agents (TestModel / FunctionModel), client WorldNewsAPI, erreurs
+                          # agents (TestModel / FunctionModel), client WorldNewsAPI, RAG (faux
+                          # embeddings, sans réseau), erreurs
 ```
 
 Hors de `backend/`, `scripts/benchmark_reviews.py` mesure le temps de génération des revues
@@ -88,6 +90,7 @@ erDiagram
     USER ||--o{ CHAT : possede
     USER ||--o{ PRESSREVIEW : possede
     CHAT ||--o{ PRESSREVIEW : genere
+    CHAT ||--o{ CHATARTICLE : contient
 
     USER {
         int id PK
@@ -104,6 +107,14 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
+    CHATARTICLE {
+        int id PK
+        int chat_id FK
+        string url
+        string title
+        string text
+        datetime created_at
+    }
     PRESSREVIEW {
         int id PK
         int user_id FK
@@ -111,6 +122,7 @@ erDiagram
         string topic
         string title
         json content
+        bool rag_used
         datetime created_at
     }
 ```
@@ -120,6 +132,8 @@ erDiagram
 | `Chat.system_prompt` | Prompt de base + actualités du jour, **figé à la création** de la discussion |
 | `Chat.messages` | Historique PydanticAI complet (messages, appels d'outils, usage), tel que le modèle le reçoit |
 | `Chat.loaded_articles` | `{url, titre}` des articles renvoyés par `search_news`, sans doublon |
+| `ChatArticle` | Texte intégral (≤ 6 000 caractères) de chaque article trouvé par `search_news`, unique par (chat, URL). Jamais exposé par l'API : lu seulement pour la recherche sémantique d'une revue |
+| `PressReview.rag_used` | Vrai si des articles retenus par la recherche sémantique ont nourri la revue, faux en cas de repli (RAG désactivé, rien de pertinent, panne). Colonne ajoutée au démarrage aux bases existantes (`database.add_missing_columns`) |
 | `PressReview.content` | Sortie structurée : `{title, summary, articles: [{title, summary, source, url}]}` |
 
 Les dates sont stockées en UTC avec fuseau (`timestamp with time zone`) ; le titre « Discussion du
@@ -179,6 +193,21 @@ sequenceDiagram
 refuse une discussion vide (400), transforme l'historique en transcription texte
 (« Journaliste : … / Assistant : … ») puis appelle l'agent de revue, qui n'a aucun outil et
 renvoie un objet validé par Pydantic. La revue est stockée dans `PressReview`.
+
+Entre les deux, une **recherche sémantique (RAG)** limite la revue aux articles pertinents :
+
+1. les `ChatArticle` du chat sont lus (jointure sur le propriétaire) ;
+2. `services/rag.py` les indexe **en mémoire** avec LlamaIndex (`VectorStoreIndex`, découpage en
+   extraits d'environ 70 mots, embeddings fastembed multilingues chargés à la première utilisation), puis récupère les extraits proches du **sujet
+   demandé** ;
+3. les extraits sous le seuil de similarité (`RAG_MIN_SCORE`) sont écartés ; il reste les articles
+   pertinents, avec leurs meilleurs extraits ;
+4. l'agent de revue (toujours sans outil) reçoit ces extraits entre balises `<sources>` et rédige
+   une synthèse par article pertinent.
+
+L'index n'est jamais persisté. **Jamais de 500 à cause du RAG** : avec `RAG_ENABLED=false` (défaut), sans
+article, sans article pertinent, en cas de panne ou de délai dépassé (`RAG_TIMEOUT_SECONDS`), la
+revue est générée à partir de la discussion seule, comme avant.
 
 ## Authentification et isolation des données
 

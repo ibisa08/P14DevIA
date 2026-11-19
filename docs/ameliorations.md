@@ -205,6 +205,7 @@ Classement complet, du plus au moins prioritaire dans chaque groupe :
 | A3 | Cache des actualités du jour de 3 h | Moyen (jusqu'à 16 points/jour libérés) | Très faible |
 | A4 | Streaming des réponses du chat (SSE) | Élevé (attente perçue −60 %) | Moyen à élevé |
 | A5 | Cache de prompt Anthropic | Moyen à élevé (entrée = 83 % du coût) | Moyen |
+| A6 | Qualité et empreinte mémoire des embeddings locaux | Moyen (RAG désactivé sur le plan d'essai) | Moyen |
 | B1 | Limitation des tentatives de connexion (slowapi) | Élevé (sécurité) | Faible |
 | B2 | Qualité des actualités du jour | Moyen (2 sujets sur 8) | Faible à moyen |
 | B3 | Pertinence des résultats de `search_news` | Moyen à élevé (32 % pertinents en lecture stricte) | Moyen |
@@ -218,6 +219,17 @@ Classement complet, du plus au moins prioritaire dans chaque groupe :
 | B11 | Longueur de l'historique envoyé au modèle | Faible aujourd'hui (mesuré) | Moyen |
 | B12 | Synthèse des actualités par un LLM avant injection | Faible à moyen | Moyen |
 | B13 | Cache et limitation de débit partagés (Redis) | Faible aujourd'hui | Moyen |
+
+### A6 — Qualité et empreinte mémoire des embeddings locaux
+- **Constat** : le RAG tourne en local (fastembed, MiniLM multilingue). En conteneur limité à 1 Go
+  il culmine à 805 Mo : trop juste pour l'activer sur le plan d'essai (`RAG_ENABLED=false`). Et sa
+  qualité sur le français n'est mesurée que sur 5 requêtes et 6 passages.
+- **Solution** : (1) rejouer le protocole strict des 5 requêtes avec `RAG_ENABLED=true` pour
+  comparer les articles retenus et pertinents avec et sans RAG ; (2) sur le plan Hobby, comparer
+  MiniLM à `paraphrase-multilingual-mpnet-base-v2` (1,6 Go de pic mesuré) ; (3) chercher à réduire le
+  pic (le chargement du modèle ajoute ~650 Mo pour un fichier de 220 Mo : arène mémoire d'ONNX Runtime).
+- **Objectif** : pertinence stricte ≥ 60 % avec le RAG sur les 5 requêtes (objectif B3), et pic de
+  RAM sous 600 Mo pour pouvoir l'activer dans 1 Go.
 
 ### B1 — Limitation des tentatives de connexion (slowapi)
 - **Constat** : `POST /login` accepte un nombre illimité d'essais, ce qui permet le brute force
@@ -335,7 +347,9 @@ Classement complet, du plus au moins prioritaire dans chaque groupe :
 
 ### B8 — Migrations de schéma (Alembic)
 - **Constat** : `create_all` crée les tables manquantes mais n'ajoute pas de colonne : l'ajout de
-  `loaded_articles` a demandé un `ALTER TABLE` manuel en local.
+  `loaded_articles` a demandé un `ALTER TABLE` manuel en local. Pour `PressReview.rag_used`, un
+  ajout automatique minimal des colonnes à valeur par défaut a été écrit (`add_missing_columns`) : il ne
+  gère ni renommage, ni changement de type, ni suppression.
 - **Solution** : Alembic, migrations versionnées appliquées au démarrage du conteneur.
 - **Étapes** : initialiser Alembic, migration de base, exécution au démarrage du conteneur,
   contrôle en CI.

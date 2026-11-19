@@ -55,6 +55,11 @@ commité.
 | `LLM_MODEL` | oui | — | Modèle des agents, au format `fournisseur:modèle`, ou `test` |
 | `ANTHROPIC_API_KEY` | si `LLM_MODEL` ≠ `test` | — | Clé Anthropic, lue par le SDK au premier appel |
 | `WORLDNEWS_API_KEY` | non | — | Clé WorldNewsAPI ; sans elle, l'application fonctionne sans actualités |
+| `RAG_ENABLED` | non | `false` | Active la recherche sémantique des revues (embeddings locaux fastembed). Désactivée : revue comme avant, aucun modèle chargé ni téléchargé |
+| `EMBEDDING_MODEL` | non | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Modèle fastembed **multilingue** (téléchargé à la première utilisation, ~220 Mo, ~800 Mo de RAM une fois chargé) |
+| `RAG_MIN_SCORE` | non | `0.4` | Similarité cosinus minimale (0 à 1) pour retenir un extrait ; calibré sur un petit échantillon seulement |
+| `RAG_TOP_K` | non | `12` | Extraits récupérés avant filtrage par le seuil |
+| `RAG_TIMEOUT_SECONDS` | non | `20` | Délai au-delà duquel la recherche est abandonnée (revue sans elle) |
 | `JWT_EXPIRE_MINUTES` | non | `60` | Durée de validité d'un token |
 | `FRONTEND_ORIGINS` | non | `http://localhost:3000` | Origines autorisées par CORS, séparées par des virgules |
 | `PORT` | non | `8000` | Port d'écoute (Railway fournit le sien) |

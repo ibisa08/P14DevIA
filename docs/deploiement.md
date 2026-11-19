@@ -39,6 +39,7 @@ Les deux plateformes redéploient automatiquement à chaque push sur `main`.
 | `LLM_MODEL` | `anthropic:claude-haiku-5-5` (surtout pas `test`) |
 | `ANTHROPIC_API_KEY` | Clé Anthropic **dédiée à la production** |
 | `WORLDNEWS_API_KEY` | Clé WorldNewsAPI |
+| `RAG_ENABLED` | `false` par défaut. `true` active la recherche sémantique des revues (modèle local, **~800 Mo de RAM** une fois chargé) : à n'activer que si le service dispose de plus de 1 Go (plan Hobby). Voir [décisions](decisions.md#recherche-sémantique-des-revues-rag) |
 | `FRONTEND_ORIGINS` | URL du frontend, sans slash final (`https://p14-dev-ia-olive.vercel.app`) |
 | `NEWS_COUNTRY` | Pays des actualités du jour (ex. `fr`) |
 | `NEWS_LANGUAGE` | Langue des actualités du jour (ex. `fr`) |
@@ -46,6 +47,14 @@ Les deux plateformes redéploient automatiquement à chaque push sur `main`.
 | `TOP_NEWS_FAILURE_TTL_SECONDS` | Délai avant de retenter après un échec (ex. `300`) |
 | `SQL_ECHO` | `false` |
 | `PORT` | Fournie par Railway, ne pas la fixer |
+
+> **Limites Railway** (page des plans) : image de 4 Go sur Trial et Free, 100 Go sur Hobby ; aucune
+> limite de taille ni de durée de build documentée. 1,2 Go passe donc, même sur le plan d'essai.
+>
+> **Image et mémoire.** Le modèle d'embeddings est téléchargé à la construction de l'image
+> (`Dockerfile`, argument `EMBEDDING_MODEL`) : l'image passe de 394 Mo à ~1,2 Go (mesure Docker arm64).
+> Avec `RAG_ENABLED=true`, la RAM monte à ~800 Mo dès la première revue : sur le plan d'essai
+> (1 Go par service), laisse `RAG_ENABLED` à `false`.
 
 Le descriptif complet de chaque variable est dans [`developpement.md`](developpement.md).
 `MLFLOW_TRACKING_URI` n'est **jamais** posée en production.
