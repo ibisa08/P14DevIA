@@ -272,6 +272,25 @@ Classement complet, du plus au moins prioritaire dans chaque groupe :
     Constats associés : 25 articles sur 25 en français (le filtre de langue n'est donc pas la
     solution) ; 25 articles pour seulement **20 sujets** (dépêches reprises par plusieurs médias) ;
     le matching est trop large sur les requêtes à plusieurs mots ; entités HTML brutes dans 4 résumés (corrigé, voir « Déjà traité »).
+  - *19/11/2026, mesure du RAG (étape 8)* : mêmes 5 requêtes et même critère strict, **nouveaux
+    résultats** (l'API trie par date : ce ne sont plus les articles du 05/11), 25 articles, solde
+    WorldNewsAPI 50,00 → 44,75 points (5,25). Jugement fait par l'assistant de développement, pas par
+    un relecteur indépendant : à recouper. Pertinents au sens strict : 0, 0, 0, 4 et 1 sur 5, soit
+    **5 / 25 (20 %)** ; au sens indulgent : 1, 1, 1, 4 et 4, soit 11 / 25 (44 %). Le RAG réel
+    (MiniLM, `RAG_MIN_SCORE=0,4`, `RAG_TOP_K=12`) retient 3, 4, 3, 4 et 4 articles : **18 / 25**.
+    Il écarte 7 articles, **tous hors sujet** (arbres d'Écosse, sommet en Chine, Covid, croissance…)
+    et garde les 11 pertinents (rappel 100 %). Précision : **strict 20 % → 28 %** (5 / 18),
+    indulgent 44 % → 61 % (11 / 18). **L'objectif de 60 % en lecture stricte n'est pas atteint**
+    (+8 points). Le modèle mesure la proximité thématique, pas « les deux notions sont le sujet
+    principal » : il garde les retraités qui manifestent, les programmes présidentiels et l'IPO
+    d'Anthropic pour « réforme des retraites » et « intelligence artificielle régulation ». Sur
+    5 revues générées avec et sans RAG (Haiku) : le RAG retire de la revue les articles écartés,
+    mais coûte **+28 % par revue** (0,0052 → 0,0067 $ pour 5 revues, jetons d'entrée +75 %) et **+2 s
+    par revue** (recherche sémantique 0,4 à 3,0 s, génération à peu près inchangée). La transcription
+    de test était synthétique (liste des 5 articles trouvés) : le gain dépend de ce que l'assistant
+    a cité dans une vraie discussion. Sensibilité du seuil sur ces seules données (risque de
+    surajustement : à ne pas retenir sans autre échantillon) : à 0,55 la précision stricte monterait
+    à ~33 % sans perdre de pertinent.
 - **Solution** :
   1. écrire dans la docstring du tool des **expressions entre guillemets** (`"réforme des
      retraites"`), que l'API accepte déjà (syntaxe « expression exacte ») : le modèle est

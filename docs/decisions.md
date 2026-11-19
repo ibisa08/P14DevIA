@@ -163,7 +163,9 @@ décrite dans [`architecture.md`](architecture.md) et la procédure de mise en l
 - **Piège trouvé en conteneur.** uv installe par liens durs et LlamaIndex refuse de lire ses fichiers
   de données multi-liens (« Security Violation », CWE-59) : le RAG échouait en silence (mode dégradé).
   Le Dockerfile utilise `UV_LINK_MODE=copy`.
-- **Limites connues.** La qualité du modèle sur le français n'est pas mesurée sur de vrais articles :
+- **Limites connues.** Mesure du 19/11/2026 sur 25 vrais articles (5 requêtes, voir B3 dans `ameliorations.md`) : le RAG
+  écarte 7 articles hors sujet sur 25 et garde tous les pertinents, mais la précision stricte ne passe
+  que de 20 % à 28 % (objectif 60 % non atteint), pour +28 % de coût et +2 s par revue. Avant cela,
   seul un essai minuscule (5 requêtes, 6 passages : pertinents 0,55 à 0,72, hors sujet ≤ 0,27) a servi
   à placer le seuil à 0,4. MiniLM est un modèle de paraphrase de petite taille : il peut rater des
   articles pertinents formulés très différemment du sujet. Le protocole strict de `ameliorations.md`
