@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any, Optional
 
-from sqlalchemy import JSON, DateTime
+from sqlalchemy import JSON, DateTime, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -41,4 +41,23 @@ class PressReview(SQLModel, table=True):
     title: str
     # Sortie structurée de l'agent : {title, summary, articles: [{title, summary, source, url}]}
     content: dict[str, Any] = Field(sa_type=JSON)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=DateTime(timezone=True))
+
+
+class ChatArticle(SQLModel, table=True):
+    """Texte d'un article trouvé par search_news dans une discussion.
+
+    Alimente la recherche sémantique de la revue de presse (index en mémoire, jamais persisté).
+    Table à part plutôt qu'une clé de `Chat.loaded_articles` : le texte (jusqu'à 6 000 caractères
+    par article) serait relu à chaque affichage de la discussion. Jamais exposée par l'API :
+    seule la revue de presse, après vérification du propriétaire du chat, la lit.
+    """
+
+    __table_args__ = (UniqueConstraint("chat_id", "url"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="chat.id", index=True)
+    url: str
+    title: str
+    text: str
     created_at: datetime = Field(default_factory=utc_now, sa_type=DateTime(timezone=True))

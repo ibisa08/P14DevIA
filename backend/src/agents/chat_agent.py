@@ -99,6 +99,8 @@ class ChatDeps:
     news_client: NewsClient
     # URL + titre de chaque article renvoyé par search_news, sans doublon (Chat.loaded_articles)
     found_articles: list[dict[str, str]] = field(default_factory=list)
+    # Texte intégral (tronqué) de ces articles par URL : va dans ChatArticle, jamais au modèle
+    found_texts: dict[str, str] = field(default_factory=dict)
     searches: int = 0
 
 
@@ -165,6 +167,8 @@ async def search_news(
         if article.url not in known_urls:
             known_urls.add(article.url)
             ctx.deps.found_articles.append({"url": article.url, "title": article.title})
+            if article.text:
+                ctx.deps.found_texts[article.url] = article.text
 
     if not articles:
         return "Aucun article trouvé. Essaie des mots-clés plus généraux ou une autre langue."

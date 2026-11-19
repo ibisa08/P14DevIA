@@ -9,7 +9,7 @@ from agents.chat_agent import ChatDeps, build_system_prompt, generate_reply
 from agents.history import dump_history, load_history, to_display_messages
 from auth.dependencies import get_current_user
 from database import get_session
-from models import Chat, User, utc_now
+from models import Chat, ChatArticle, User, utc_now
 from routers.auth import UNAUTHORIZED_RESPONSE
 from schemas import ChatRead, ChatSummary, MessageCreate
 from services.news_api import NewsApiError, NewsArticle, NewsClient, get_news_client
@@ -56,6 +56,46 @@ def merge_articles(
     """Ajoute les articles trouvés à ceux déjà chargés, sans doublon d'URL (nouvelle liste)."""
     known_urls = {article["url"] for article in known}
     return [*known, *(article for article in found if article["url"] not in known_urls)]
+
+
+# Garde-fou : texte stocké pour au plus ce nombre d'articles par discussion (les premiers trouvés)
+MAX_STORED_ARTICLES_PER_CHAT = 50
+
+
+def store_article_texts(session: Session, chat: Chat, deps: ChatDeps) -> None:
+    """Ajoute à la session les textes des articles trouvés pendant l'échange (sans doublon d'URL).
+
+    Ils serviront à la recherche sémantique de la revue de presse. La ligne est rattachée au chat
+    que l'appelant vient de charger avec `get_owned_chat` : jamais à un chat d'un autre utilisateur.
+    """
+    known_urls = set(
+        session.exec(select(ChatArticle.url).where(ChatArticle.chat_id == chat.id)).all()
+    )
+    for article in deps.found_articles:
+        url = article["url"]
+        if len(known_urls) >= MAX_STORED_ARTICLES_PER_CHAT:
+            break
+        text = deps.found_texts.get(url)
+        if text and url not in known_urls:
+            known_urls.add(url)
+            session.add(
+                ChatArticle(chat_id=chat.id, url=url, title=article["title"], text=text)
+            )
+
+
+def load_owned_chat_articles(session: Session, chat_id: int, user: User) -> list[ChatArticle]:
+    """Articles d'une discussion de `user`, ou liste vide si elle appartient à un autre.
+
+    Le filtre sur le propriétaire est dans la requête SQL (jointure), comme `get_owned_chat` :
+    même un appel avec un mauvais couple (chat, utilisateur) ne peut pas lire les textes d'autrui.
+    """
+    statement = (
+        select(ChatArticle)
+        .join(Chat, col(Chat.id) == col(ChatArticle.chat_id))
+        .where(ChatArticle.chat_id == chat_id, Chat.user_id == user.id)
+        .order_by(col(ChatArticle.id))
+    )
+    return list(session.exec(statement).all())
 
 
 def to_chat_read(chat: Chat) -> ChatRead:
@@ -168,6 +208,7 @@ async def send_message(
 
     chat.messages = dump_history(updated_history)
     chat.loaded_articles = merge_articles(chat.loaded_articles, deps.found_articles)
+    store_article_texts(session, chat, deps)
     chat.updated_at = utc_now()
     session.add(chat)
     session.commit()

@@ -9,6 +9,7 @@ import pytest
 
 from config import Settings
 from services.news_api import (
+    ARTICLE_TEXT_MAX_CHARS,
     SEARCH_MAX_RESULTS,
     EmptyTopNewsError,
     SUMMARY_MAX_CHARS,
@@ -364,3 +365,17 @@ def test_settings_key_optional_and_hidden():
     settings = Settings(_env_file=None, **base, worldnews_api_key=API_KEY)
     assert settings.worldnews_api_key.get_secret_value() == API_KEY
     assert API_KEY not in repr(settings)
+
+
+def test_search_keeps_full_text_but_top_news_does_not():
+    long_text = "mot " * 3000
+    search_api = FakeApi(ok(search_payload([article(1, text=long_text)])))
+    top_api = FakeApi(ok(top_news_payload([[article(1, text=long_text)]])))
+
+    [found] = asyncio.run(make_client(search_api).search_news("retraites"))
+    [top] = asyncio.run(make_client(top_api).get_top_news())
+
+    assert 0 < len(found.text) <= ARTICLE_TEXT_MAX_CHARS
+    assert top.text == ""
+    # Jamais dans la sérialisation (ce que reçoit le modèle) : seulement les cinq champs simples
+    assert "text" not in found.model_dump() and "mot mot" not in found.model_dump_json()

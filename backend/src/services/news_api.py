@@ -17,7 +17,7 @@ from functools import lru_cache
 from urllib.parse import urlsplit
 
 import httpx
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from config import get_settings
 
@@ -36,6 +36,9 @@ SUMMARY_MAX_CHARS = 300
 QUERY_MIN_LENGTH = 3
 QUERY_MAX_LENGTH = 100
 SEARCH_MAX_RESULTS = 5
+# Texte intégral gardé par article pour la recherche sémantique des revues (environ 2 300 tokens) :
+# assez pour couvrir le corps d'un article, sans faire grossir la base ni la facture d'embeddings
+ARTICLE_TEXT_MAX_CHARS = 6000
 
 
 # --- Erreurs ------------------------------------------------------------------------
@@ -77,6 +80,10 @@ class NewsArticle(BaseModel):
     url: str
     source: str
     published_at: datetime | None
+    # Texte intégral (tronqué), uniquement pour les résultats de recherche. exclude=True : il
+    # n'apparaît ni dans model_dump ni dans la sérialisation renvoyée au LLM par l'outil
+    # (tokens à chaque requête) ; il sert seulement à alimenter la table ChatArticle.
+    text: str = Field(default="", exclude=True)
 
 
 # --- Format brut de l'API (validé, jamais exposé) -------------------------------------
@@ -114,6 +121,14 @@ def _truncate(text: str, max_chars: int) -> str:
     return text[:max_chars].rsplit(" ", 1)[0].rstrip(" ,;:.") + "…"
 
 
+def _clean_text(text: str, max_chars: int) -> str:
+    """Entités HTML décodées, espaces normalisés, coupe au dernier mot entier (sans « … »)."""
+    text = re.sub(r"\s+", " ", html.unescape(text)).strip()
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rsplit(" ", 1)[0]
+
+
 def _parse_publish_date(value: str | None) -> datetime | None:
     # Format de la doc « YYYY-MM-DD HH:MM:SS », sans fuseau : on le lit en UTC
     if not value:
@@ -124,8 +139,12 @@ def _parse_publish_date(value: str | None) -> datetime | None:
         return None
 
 
-def _simplify(raw: _RawArticle) -> NewsArticle | None:
-    """Article simplifié, ou None s'il manque un titre ou une URL http(s)."""
+def _simplify(raw: _RawArticle, *, with_text: bool = False) -> NewsArticle | None:
+    """Article simplifié, ou None s'il manque un titre ou une URL http(s).
+
+    `with_text` garde aussi le texte intégral tronqué (recherches uniquement : les actualités
+    du jour sont mises en cache et n'en ont pas besoin).
+    """
     # WorldNewsAPI renvoie parfois des entités HTML brutes (&#039;, &amp;, &nbsp;) : on les
     # décode avant la troncature, sinon une entité coupée en deux resterait illisible
     title = html.unescape(raw.title or "").strip()
@@ -142,6 +161,10 @@ def _simplify(raw: _RawArticle) -> NewsArticle | None:
         # L'API ne donne pas le nom du média : on affiche son domaine (ex. lemonde.fr)
         source=parts.hostname.removeprefix("www."),
         published_at=_parse_publish_date(raw.publish_date),
+        # Résumé à défaut de texte intégral : mieux que rien pour la recherche sémantique
+        text=_clean_text(raw.text or raw.summary or "", ARTICLE_TEXT_MAX_CHARS)
+        if with_text
+        else "",
     )
 
 
@@ -266,7 +289,8 @@ class NewsClient:
             params["language"] = language
         payload = await self._get("/search-news", params)
         response = self._parse(_SearchNewsResponse, payload, "/search-news")
-        return [article for article in map(_simplify, response.news) if article]
+        simplified = (_simplify(raw, with_text=True) for raw in response.news)
+        return [article for article in simplified if article]
 
     def _require_key(self) -> None:
         if not self._api_key:
